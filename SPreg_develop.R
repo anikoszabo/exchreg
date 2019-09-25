@@ -1,6 +1,6 @@
 library(devtools)
 source('z:/RForge/Nuweb.R')
-source('/home/aszabo/RForge/Nuweb_linux.R')
+#source('/home/aszabo/RForge/Nuweb_linux.R')
 
 run_nuweb(file="SPregress.w", path=getwd())
 
@@ -8,10 +8,18 @@ source('R/SPreg.R', echo=FALSE)
 
 data(shelltox)
 a <- sprr(cbind(NResp, ClusterSize-NResp) ~ Trt, data=shelltox, weights=shelltox$Freq,
-                control=list(eps=0.01,maxit=100))
+                control=list(eps=0.001, maxit=1000), 
+          start = list(mu1=0.4))
 
 nd <- data.frame(Trt = unique(shelltox$Trt))
-p <- predict(a, newdata=nd)
+nd$p <- predict(a, newdata=nd)
+nd
+
+a2 <- sprr(cbind(NResp, ClusterSize-NResp) ~ Trt + log(ClusterSize), 
+           data=shelltox, weights=shelltox$Freq,
+           control=list(eps=0.001,maxit=100),
+           start = list(beta=c(coef(a),0), q=a$q))
+
 
 ab <- sprr(cbind(NResp, ClusterSize-NResp) ~ Trt, data=shelltox, weights=shelltox$Freq,
            control=list(eps=0.01,maxit=100), start=list(beta=c(0,-1,1,1)))
