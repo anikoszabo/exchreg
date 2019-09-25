@@ -1,0 +1,204 @@
+
+require(CorrBin)
+
+# lambda-to-p weight matrix, rows:r, cols:s
+# (-1)^(s-r)*choose(n,r)*choose(n-r,s-r)
+
+weight_mat <- function(n){
+  s <- r <- 0:n
+  res <- outer(r, s, function(x,y)(-1)^(y-x)*choose(n,x)*choose(n-x,y-x))
+  res
+}
+
+p_from_lambda <- function(lambda.vec, n){
+  H <- weight_mat(n)
+  H %*% lambda.vec[1:(n+1)]     
+}
+
+# p-to-lambda weight matrix, rows:k, cols:r
+# (choose(n-k, n-r)/choose(n,r)
+
+weight_mat2 <- function(n){
+  k <- r <- 0:n
+  res <- outer(k, r, function(x,y)choose(n-x, n-y)/choose(n,y))
+  res
+}
+
+lambda_from_p <- function(p.vec, n=length(p.vec)-1){
+  H <- weight_mat2(n)
+  H %*% p.vec
+}
+
+#'@rdname sp_relrisk
+#'@param formula a one-sided formula of the form \code{cbind(r, s) ~ predictors} where \code{r} and \code{s} give the number of responses and non-responses within each cluster, respectively (so the cluster size is \code{r+s}), and \code{predictors} describes the covariates.
+#'@param data  an optional matrix or data frame containing the variables in the formula \code{formula}. By default the variables are taken from \code{environment(formula).}
+#'@param subset an optional vector specifying a subset of observations to be used.
+#'@param weight an optional vector specifying observation weights.
+#'@param link     a link function for the binomial distribution, the inverse of which models the covariate effects.
+#'@param control        a list with parameters controlling the algorithm.
+#'@export
+#' @importFrom stats terms model.matrix
+
+#' Semi-parametric relative risk model
+sp_relrisk <- function(formula, data, subset, weight, link="cloglog", mu1=0.95, control=list(eps=0.001, maxit=100), ...){
+    fam <- binomial(link=link)
+    model_fun <- fam$linkinv
+
+    
+       if (missing(formula) || (length(formula) != 3L))
+            stop("'formula' missing or incorrect")
+       if (missing(data))
+            data <- environment(formula)
+        mc <- match.call(expand.dots = FALSE)
+        m <- match(c("formula", "data", "subset", "weights"), names(mc), 0L)
+        m <- mc[c(1L,m)]
+        if (is.matrix(eval(m$data, parent.frame())))
+            m$data <- as.data.frame(data)
+        m[[1L]] <- quote(stats::model.frame)
+        mf <- eval(m, parent.frame())
+    
+        # extract and check response variable
+        Y <- model.response(mf)
+        if (ncol(Y) != 2) stop("The response variable should be a 2-column matrix")
+    
+        # create model matrix
+        mm <- model.matrix(formula, data=mf)
+    
+        # extract or create weights
+        weights <- as.vector(model.weights(mf))
+        if (!is.null(weights) && !is.numeric(weights))
+            stop("'weights' must be a numeric vector")
+        if (!is.null(weights) && any(weights < 0))
+            stop("negative weights not allowed")
+        if (is.null(weights))
+            weights <- rep(1, nrow(mm))
+    
+    
+    
+    
+        
+        mean_constrained_probs <- function(cc, m){
+            N <- length(cc) - 1
+            r_eq <- Vectorize(function(rho){i <- 0:N; sum(cc * (i - m)/(1+(exp(rho)-1/N)*i))})
+            rho <- uniroot(r_eq, interval=c(-10, 10), extendInt="yes")
+            r <- exp(rho$root) - 1/N
+            q <- cc / (1 + r * (0:N))
+            q <- q/sum(q)
+            q
+        }
+        
+        
+            N <- max(rowSums(Y))
+            
+            p0 <- (Y[,1] + 0.5)/(Y[,1] + Y[,2]+ 1)
+            lp0 <- fam$linkfun(pmin(1-.Machine$double.eps, p0/mu1))
+            lm0 <- lm.wfit(x=mm, y=lp0, w=weights) 
+            beta_new <- coef(lm0)
+            
+            pooled <- CBData(data.frame(Trt = "All", NResp = Y[,1], ClusterSize = rowSums(Y)), trt="Trt", 
+                             clustersize="ClusterSize", nresp="NResp")
+            est <- mc.est(pooled)
+            q0 <- est$Prob[est$ClusterSize == N]
+            q_new <- mean_constrained_probs(pmax(q0, 0.01), N*mu1)
+        
+        #ll.list <- numeric(control$maxit)
+        ll.list <- numeric(2)
+    
+        iter <- 0
+        diff <- 100
+        ll.list[1] <- loglik(beta_new, q_new, list(model_matrix=mm, resp=Y, weights=weights),
+                              model_fun=model_fun)
+        while ((diff > control$eps) & (iter < control$maxit)){
+            iter <- iter + 1
+            #ll.list[iter] <- loglik(beta_new, q_new, list(model_matrix=mm, resp=Y, weights=weights),
+            #                        model_fun=model_fun)
+            beta_old <- beta_new
+            q_old <- q_new
+    
+            
+                # replace each cluster with N(N-1)/2 clusters of size N
+                new <- cbind(s=rep(0:N, each=N+1), y=rep(0:N, times=N+1))
+                new <- new[new[,"s"] <= new[,"y"],]
+            
+                rep_idx <- rep(1:nrow(Y), each=nrow(new))
+                Y2 <- cbind(1:nrow(Y), Y)[rep_idx,]
+                colnames(Y2) <- c("i", "resp","nonresp")
+                mm2 <- mm[rep_idx,]
+            
+                rep_idx2 <- rep(1:nrow(new), times=nrow(Y))
+                Ycomb <- cbind(Y2, new[rep_idx2,])
+            
+                # calculate a_{iys}^k
+                lp <- mm2 %*% beta_old
+                theta <- model_fun(lp)
+                a <- dbinom(x=Ycomb[,"s"], size=Ycomb[,"y"], prob=theta) * q_old[Ycomb[,"y"]+1]
+            
+                # calculate e_{is}^k w_{iys}^k
+                ew_num <- dhyper(x=Ycomb[,"resp"], m=Ycomb[,"s"], n=N - Ycomb[,"s"], 
+                                 k=Ycomb[,"resp"] + Ycomb[,"nonresp"]) * a
+                ew_denom <- tapply(ew_num, list(i=Ycomb[,"i"]), sum, simplify=TRUE)
+                ew <- weights * ew_num / ew_denom[Ycomb[,"i"]]
+            
+            
+            
+                mod <- glm(cbind(Ycomb[,"s"], Ycomb[,"y"]-Ycomb[,"s"]) ~ mm2+0, family=fam, weights=ew)
+                beta_new <- coef(mod)
+            
+            
+                c_vec <- tapply(ew, list(y=Ycomb[,"y"]), sum, simplify=TRUE)
+                q_new <- mean_constrained_probs(c_vec, N*mu1)
+            
+    
+            diff <- sum(abs(beta_old - beta_new)) + sum(abs(q_old - q_new))
+        }
+        #ll.list[iter+1] <- loglik(beta_new, q_new, list(model_matrix=mm, resp=Y, weights=weights), model_fun=model_fun)
+        ll.list[2] <- loglik(beta_new, q_new, list(model_matrix=mm, resp=Y, weights=weights), model_fun=model_fun)
+    
+    
+    
+    res <- list(beta = beta_new, q=q_new, niter = iter, ll.list=ll.list, 
+                data_object=list(model_matrix=mm, resp=Y, weights=weights),
+                model_fun=model_fun)
+    class(res) <- "sp_rr_fit"
+    res
+
+}
+
+pred_p <- function(beta, q, data_object, model_fun){
+    lp <- data_object$model_matrix %*% beta
+    theta <- model_fun(lp)
+    cs <- rowSums(data_object$resp)
+    N <- length(q)-1
+    b.list <- lapply(theta, function(th)outer(0:N, 0:N, dbinom, prob=th))
+    p_N <- sapply(b.list, function(B)B %*% q) 
+    H <- sapply(seq_along(cs), function(i)dhyper(x=data_object$resp[i], m=0:N, n=N:0, k=cs[i]))
+    prob <- colSums(p_N * H)
+    prob
+}
+
+pred_lambda <- function(beta, q, data_object, model_fun){
+    lp <- data_object$model_matrix %*% beta
+    theta <- model_fun(lp)
+    cs <- rowSums(data_object$resp)
+    N <- length(q)-1
+    lambda_N <- lambda_from_p(q)
+    th <- sapply(0:N, function(k)theta^k)
+    lambda <- apply(th, 1, function(t)t * lambda_N)
+    t(lambda)
+}
+
+# another way to predict p
+pred_p2 <- function(beta, q, data_object, model_fun){
+   ll <- pred_lambda(beta, q, data_object, model_fun)
+   cs <- rowSums(data_object$resp)
+   pp <- sapply(1:length(cs), 
+                function(i)p_from_lambda(ll[i,], n=cs[i])[data_object$resp[i,1]+1])
+   pp
+}
+loglik <- function(beta, q, data_object, model_fun){
+    p <- pred_p2(beta=beta, q=q, data_object = data_object, model_fun=model_fun)
+    w <- data_object$weights
+    if (is.null(w)) ll <- sum(log(p))
+    else ll <- sum(ifelse(w==0, 0, w*log(p)))
+    ll
+}
