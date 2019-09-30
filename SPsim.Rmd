@@ -6,7 +6,8 @@ output: html_notebook
 
 ```{r setup}
 source('R/SPreg.R', echo=FALSE)
-
+library(ggplot2)
+theme_set(theme_classic())
 ```
 
 Goal:
@@ -36,6 +37,24 @@ cs.varied <- function(n) {
 }
 ```
 
+### Covariate-generating functions
+
+Returns model matrix with randomly generated covariates
+
+```{r Covgen}
+cov.trt <- function(n, ntrts=4){
+  obs <- rep(LETTERS[1:ntrts], length = n)
+  dat <- data.frame(Trt = obs)
+  dat
+}
+
+cov.bin_norm <- function(n, p=0.5){
+  bin <- rbinom(n, size=1, prob=p)
+  norm <- rnorm(n)
+  data.frame(X1 = bin, X2 = norm)
+}
+```
+
 ### Simulate one dataset
 
 The inputs will be
@@ -49,13 +68,14 @@ The inputs will be
 
 ```{r SimSetup}
 sim.sp <- function(n, clustersize.gen, backbone.gen, 
-                   covariate.gen, beta, link="cloglog"){
+                   covariate.gen, formula, beta, link="log"){
   
    model_fun <- binomial(link=link)$linkinv
    
    cs <- clustersize.gen(n)
    K <- max(cs)
-   cov.mat <- covariate.gen(n)
+   covs <- covariate.gen(n)
+   cov.mat <- model.matrix(formula, data=covs)
    
    lp <- cov.mat %*% beta
    theta <- model_fun(lp)
@@ -63,23 +83,40 @@ sim.sp <- function(n, clustersize.gen, backbone.gen,
    q0 <- backbone.gen(K)
    lambda0 <- lambda_from_p(q0)
    
-   th <- sapply(0:R, function(k)theta^k)
+   th <- sapply(0:K, function(k)theta^k)
    lambda <- apply(th, 1, function(t)t * lambda0)
-   rownames(lambda) <- 0:R
+   rownames(lambda) <- 0:K
    
    q <- lapply(1:n,
                function(idx)p_from_lambda(lambda[,idx], n=cs[idx]))
-   nresp <- lapply(q, function(qq)sample(seq_along(qq)-1, 
+   nresp <- sapply(q, function(qq)sample(seq_along(qq)-1, 
                                          size=1, prob=qq))
    res <- data.frame(ID=1:n,
                      ClusterSize = cs,
                      NResp = nresp)
-   res <- cbind(res, cov.mat)
+   res <- cbind(res, covs)
    res
 }   
   
 ```
 
  
- 
- 
+### Example of simulated data
+
+```{r SimEx}
+simd <- sim.sp(n = 100,
+               clustersize.gen = cs.varied,
+               backbone.gen = function(n)qpower.pdf(p=0.8, rho=0.5, n=n),
+               covariate.gen = cov.trt,
+               formula = ~Trt,
+               beta = c(0, -0.5, -1, -2),
+               link = "log")
+
+ggplot(simd, aes(x=Trt, y=NResp/ClusterSize, size=ClusterSize)) +
+  geom_jitter(width=0.1, height=0, alpha=0.5) +
+  scale_size_area(breaks=c(1,5,10))
+```
+
+### Export multiple simulated sets
+
+The GEE and beta-binomial models with log-links will be fitted in SAS. 
