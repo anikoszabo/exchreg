@@ -1,0 +1,85 @@
+---
+title: "Simulation study"
+output: html_notebook
+---
+
+
+```{r setup}
+source('R/SPreg.R', echo=FALSE)
+
+```
+
+Goal:
+
+ * simulate data with a q-power backbone distribution that follows the relative-risk regression model
+ * fit the data using our semi-parametric regression model, beta-binomial regression (misspecified correlation structure), and GEE (marginal only)
+ 
+ 
+$$
+	\lambda_k(z) = {\mu_k} \times {\theta(\beta' z)^k}, k = 0, \dots, K,
+$$
+
+## Simulating data
+### Cluster-size distributions
+
+ 1. All small (3); 
+ 2. All large (10); 
+ 3. varying (0.5*(1+binom(9, 0.5)) + 0.5*Unif(2,10))
+
+```{r Clustersizes}
+cs.small <- function(n) rep(3, n)
+cs.large <- function(n) rep(10, n)
+cs.varied <- function(n) {
+  p <- rbinom(n, size=1, prob=0.5)
+  x <- ifelse(p, 1+rbinom(n, size=9, prob=0.5), sample(2:10, size=n, replace=TRUE))
+  x
+}
+```
+
+### Simulate one dataset
+
+The inputs will be
+
+ * `n` - number of clusters to simulate data
+ * `clustersize.gen` - function to generate the clustersizes
+ * `backbone.gen` - function to generate the PDF of the backbone
+ * `covariate.gen` - function to generate the covariates
+ * `beta` - coefficients of the linear predictor
+ * `link` - the link-function for the semi-parametric model; the inverse link is the $\theta$ function in the equation
+
+```{r SimSetup}
+sim.sp <- function(n, clustersize.gen, backbone.gen, 
+                   covariate.gen, beta, link="cloglog"){
+  
+   model_fun <- binomial(link=link)$linkinv
+   
+   cs <- clustersize.gen(n)
+   K <- max(cs)
+   cov.mat <- covariate.gen(n)
+   
+   lp <- cov.mat %*% beta
+   theta <- model_fun(lp)
+   
+   q0 <- backbone.gen(K)
+   lambda0 <- lambda_from_p(q0)
+   
+   th <- sapply(0:R, function(k)theta^k)
+   lambda <- apply(th, 1, function(t)t * lambda0)
+   rownames(lambda) <- 0:R
+   
+   q <- lapply(1:n,
+               function(idx)p_from_lambda(lambda[,idx], n=cs[idx]))
+   nresp <- lapply(q, function(qq)sample(seq_along(qq)-1, 
+                                         size=1, prob=qq))
+   res <- data.frame(ID=1:n,
+                     ClusterSize = cs,
+                     NResp = nresp)
+   res <- cbind(res, cov.mat)
+   res
+}   
+  
+```
+
+ 
+ 
+ 
