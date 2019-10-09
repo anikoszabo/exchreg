@@ -159,8 +159,7 @@ sprr <- function(formula, data, subset, weights, link="cloglog", mu1=NULL, start
                 if (!is.null(weights)) ew <- weights * ew
             
             
-                mod <- glm(cbind(Ycomb[,"s"], Ycomb[,"y"]-Ycomb[,"s"]) ~ mm2+0, 
-                           family=fam, weights=ew, start=beta_old)
+                mod <- glm(cbind(Ycomb[,"s"], Ycomb[,"y"]-Ycomb[,"s"]) ~ mm2+0, family=fam, weights=ew, start=beta_old)
                 beta_new <- coef(mod)
             
             
