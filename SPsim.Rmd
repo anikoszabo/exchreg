@@ -1,0 +1,273 @@
+---
+title: "Simulation study"
+output: html_notebook
+---
+
+
+```{r setup}
+source('R/SPreg.R', echo=FALSE)
+library(knitr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+theme_set(theme_classic())
+```
+
+Goal:
+
+ * simulate data with a q-power backbone distribution that follows the relative-risk regression model
+ * fit the data using our semi-parametric regression model, beta-binomial regression (misspecified correlation structure), and GEE (marginal only)
+ 
+ 
+$$
+	\lambda_k(z) = {\mu_k} \times {\theta(\beta' z)^k}, k = 0, \dots, K,
+$$
+
+## Simulating data
+### Cluster-size distributions
+
+ 1. All small (3); 
+ 2. All large (10); 
+ 3. varying (0.5*(1+binom(9, 0.5)) + 0.5*Unif(2,10))
+
+```{r Clustersizes}
+cs.small <- function(n) rep(3, n)
+cs.large <- function(n) rep(10, n)
+cs.varied <- function(n) {
+  p <- rbinom(n, size=1, prob=0.5)
+  x <- ifelse(p, 1+rbinom(n, size=9, prob=0.5), sample(2:10, size=n, replace=TRUE))
+  x
+}
+```
+
+### Covariate-generating functions
+
+Returns model matrix with randomly generated covariates
+
+```{r Covgen}
+cov.trt <- function(n, ntrts=4){
+  obs <- rep(LETTERS[1:ntrts], length = n)
+  dat <- data.frame(Trt = obs)
+  dat
+}
+
+cov.bin_norm <- function(n, p=0.5){
+  bin <- rbinom(n, size=1, prob=p)
+  norm <- rnorm(n)
+  data.frame(X1 = bin, X2 = norm)
+}
+```
+
+### Simulate one dataset
+
+The inputs will be
+
+ * `n` - number of clusters to simulate data
+ * `clustersize.gen` - function to generate the clustersizes
+ * `backbone.gen` - function to generate the PDF of the backbone
+ * `covariate.gen` - function to generate the covariates
+ * `beta` - coefficients of the linear predictor
+ * `link` - the link-function for the semi-parametric model; the inverse link is the $\theta$ function in the equation
+
+```{r SimSetup}
+sim.sp <- function(n, clustersize.gen, backbone.gen, 
+                   covariate.gen, formula, beta, link="log"){
+  
+   model_fun <- binomial(link=link)$linkinv
+   
+   cs <- clustersize.gen(n)
+   K <- max(cs)
+   covs <- covariate.gen(n)
+   cov.mat <- model.matrix(formula, data=covs)
+   
+   lp <- cov.mat %*% beta
+   theta <- model_fun(lp)
+   
+   q0 <- backbone.gen(K)
+   lambda0 <- lambda_from_p(q0)
+   
+   th <- sapply(0:K, function(k)theta^k)
+   lambda <- apply(th, 1, function(t)t * lambda0)
+   rownames(lambda) <- 0:K
+   
+   q <- lapply(1:n,
+               function(idx)p_from_lambda(lambda[,idx], n=cs[idx]))
+   nresp <- sapply(q, function(qq)sample(seq_along(qq)-1, 
+                                         size=1, prob=qq))
+   res <- data.frame(ID=1:n,
+                     ClusterSize = cs,
+                     NResp = nresp)
+   res <- cbind(res, covs)
+   list(data=res, probs=q)
+}   
+  
+```
+
+ 
+### Example of simulated data
+
+```{r SimEx}
+simd <- sim.sp(n = 100,
+               clustersize.gen = cs.varied,
+               backbone.gen = function(n)qpower.pdf(p=0.8, rho=0.5, n=n),
+               covariate.gen = cov.trt,
+               formula = ~Trt,
+               beta = c(0, -0.5, -1, -2),
+               link = "log")$data
+
+ggplot(simd, aes(x=Trt, y=NResp/ClusterSize, size=ClusterSize)) +
+  geom_jitter(width=0.1, height=0, alpha=0.5) +
+  scale_size_area(breaks=c(1,5,10))
+```
+
+### Simulate and export multiple simulated sets
+
+The GEE and beta-binomial models with log-links will be fitted in SAS, so we will simulate all the datasets at once. 
+
+
+
+```{r ActualSim}
+set.seed(10012019)
+R <- 500
+sim.list <- 
+  lapply(1:R,
+         function(idx){
+           res <- sim.sp(n = 100,
+               clustersize.gen = cs.varied,
+               backbone.gen = function(n)qpower.pdf(p=0.5, rho=0.5, n=n),
+               covariate.gen = cov.trt,
+               formula = ~Trt,
+               beta = c(0, -0.5, -1, -2),
+               link = "log")$data
+           res$Dataset <- idx
+           res})
+sim.all <- do.call(rbind, sim.list)
+write.table(sim.all, file="SimData.txt", row.names=FALSE, quote=FALSE)
+```
+
+## Run analyses
+
+```{r RunSAS}
+if (.Platform$OS.type == "unix"){
+  system("sas FitModels", wait=TRUE)
+}
+gee.res <- read.delim("GEEest.txt") %>%
+  mutate(Coef = paste0(Parm, Level1)) %>%
+  select(-Parm,-Level1) %>%
+  group_by(Dataset) %>%
+  spread(key=Coef, value=Estimate)
+
+bb.res <- read.delim("BBest.txt")%>%
+  mutate(Coef = paste0(Effect, Trt)) %>%
+  select(-Effect,-Trt) %>%
+  group_by(Dataset) %>%
+  spread(key=Coef, value=Estimate)
+```
+
+```{r RunSP, warning=FALSE}
+sp.res.list <- lapply(sim.list,
+                 function(d){
+                   tryCatch(fit <- sprr(cbind(NResp, ClusterSize-NResp) ~ Trt,
+                               data=d, link="log",
+                               control=list(maxit=100, eps=0.01)), silent=TRUE,
+                            error = function(e)NULL)
+                 })
+sp.coef <- lapply(sp.res.list, 
+                      function(z)if(is.null(z)) rep(NA,4) else coef(z))
+sp.mu <- lapply(sp.res.list, 
+                 function(z)if(is.null(z)) NA else lambda_from_p(z$q)[2])
+sp.res <- as_tibble(do.call(rbind, sp.coef)) %>%
+  bind_cols(mu = unlist(sp.mu)) %>%
+  mutate(Dataset = 1:length(sp.coef)) %>%
+  mutate(Intercept = `(Intercept)`+log(mu))
+
+```
+
+## Compare results
+
+```{r Compare}
+comb <- bind_rows(list(GEE=gee.res,
+                       BB=bb.res,
+                       SP=sp.res), .id="Method") %>%
+  select(-TrtA, -`Scale Parameter`, -`(Intercept)`, -mu) %>%
+  group_by(Dataset, Method) %>%
+  gather(key="Parameter", value="Estimate", Intercept:TrtD)
+
+correct <- tibble(Parameter=c("Intercept","TrtB","TrtC", "TrtD"),
+                  Correct = c(log(0.5), -0.5, -1, -2))
+comb <- left_join(comb, correct, by="Parameter")
+
+scomb <- comb %>%
+  group_by(Method, Parameter) %>%
+  summarize(bias = mean(Estimate-Correct, na.rm=TRUE),
+            se = sd(Estimate, na.rm=TRUE),
+            rmse = sqrt(mean((Estimate-Correct)^2, na.rm=TRUE)))
+kable(scomb, digits=2)
+```
+
+```{r ComparePlot}
+ggplot(comb, aes(x=Method, y=Estimate, colour=Method)) +
+  facet_wrap(~Parameter) +
+  geom_hline(aes(yintercept=Correct)) +
+  geom_jitter(alpha=0.3, height=0)
+```
+
+
+### Compare predicted probability of 0 events in a cluster of size 5
+
+```{r ProbZero}
+nd <- expand.grid(Trt=LETTERS[1:4])
+sp.zero.list <- lapply(sp.res.list, 
+                  function(fit){
+                    pr <- predict(fit, newdata=nd, newn=5, type="probvec")
+                    cbind(nd, p0=do.call(rbind, pr)[,1])})
+sp.zero <- bind_rows(sp.zero.list, .id="Dataset") %>%
+  mutate(Dataset = as.numeric(Dataset))
+
+
+# rho =1/(1+phi)
+bb.zero <- bb.res %>% 
+  gather(key="TrtS", value="Estimate", TrtA:TrtD) %>%
+  mutate(rho = 1/(1+`Scale Parameter`),
+         mu = exp(Intercept + Estimate),
+         Trt = substr(TrtS, 4, 4),
+         p0 = dbetabinom(0, size=5, prob = mu, rho = rho)) %>%
+  select(Dataset, Trt, p0)
+```
+
+Calculate correct values:
+```{r CorrectProbZero}
+p0c <- sim.sp(n = 4,
+       clustersize.gen = function(n)rep(5,n),
+       backbone.gen = function(n)qpower.pdf(p=0.5, rho=0.5, n=n),
+       covariate.gen = cov.trt,
+       formula = ~Trt,
+       beta = c(0, -0.5, -1, -2),
+       link = "log")$probs %>%
+  sapply(., function(x)x[1])
+correct.zero <- cbind(nd, Correct=p0c)
+```
+
+
+```{r ProbZeroComb}
+comb.zero <- bind_rows(list(BB=bb.zero,
+                            SP=sp.zero), .id="Method") %>%
+  left_join(correct.zero, by="Trt")
+
+
+scomb.zero <- comb.zero %>%
+  group_by(Method, Trt) %>%
+  summarize(m_p0 = mean(p0, na.rm = TRUE),
+            bias = mean(p0 - Correct, na.rm = TRUE),
+            se = sd(p0, na.rm=TRUE),
+            rmse = sqrt(mean((p0-Correct)^2, na.rm=TRUE)))
+scomb.zero
+```
+
+
+```{r CompareZeroPlot}
+ggplot(comb.zero, aes(x=Method, y=p0, colour=Method)) +
+  facet_wrap(~Trt) +
+  geom_hline(aes(yintercept=Correct)) +
+  geom_jitter(alpha=0.3, height=0)
+```

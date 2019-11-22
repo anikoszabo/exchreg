@@ -577,7 +577,7 @@ The first term in \eqref{E:LowerBound} corresponds to a weighted binomial likeli
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
-\mbox{}\verb@    mod <- glm(cbind(Ycomb[,"s"], Ycomb[,"y"]-Ycomb[,"s"]) ~ mm2+0, family=fam, weights=ew)@\\
+\mbox{}\verb@    mod <- glm(cbind(Ycomb[,"s"], Ycomb[,"y"]-Ycomb[,"s"]) ~ mm2+0, family=fam, weights=ew, start=beta_old)@\\
 \mbox{}\verb@    beta_new <- coef(mod)@\\
 \mbox{}\verb@@{\NWsep}
 \end{list}

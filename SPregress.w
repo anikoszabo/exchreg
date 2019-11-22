@@ -432,7 +432,7 @@ where $a_{iys}^{(k)} = \binom{y}{s} {\theta(\beta^{(k)'}z_i)^s} {(1-\theta(\beta
 The first term in \eqref{E:LowerBound} corresponds to a weighted binomial likelihood with $y$ as the cluster size, $s$ as the number of successes, a link function $\theta^{-1}$, and weights $f_i e_{is}^{(k)}w_{iys}^{(k)}$, so $\beta$ can be updated using logistic regression.
 
 @D M-step for beta@{
-    mod <- glm(cbind(Ycomb[,"s"], Ycomb[,"y"]-Ycomb[,"s"]) ~ mm2+0, family=fam, weights=ew)
+    mod <- glm(cbind(Ycomb[,"s"], Ycomb[,"y"]-Ycomb[,"s"]) ~ mm2+0, family=fam, weights=ew, start=beta_old)
     beta_new <- coef(mod)
 @}
 
