@@ -40,7 +40,7 @@ require(CorrBin)
 \subsection{Exchangeable model}
 
 \begin{equation}\label{E:1to1}
-	p_{r,n}= \binom{n}{r} \sum_{j=0}^{n-r} {(-1)^j} \binom{n-r}{j} \lambda_{r+j} = \binom{n}{r} \sum_{s=r}^{n} {(-1)^(s-r)} \binom{n-r}{s-r} \lambda_{s},
+	p_{r,n}= \binom{n}{r} \sum_{j=0}^{n-r} {(-1)^j} \binom{n-r}{j} \lambda_{r+j} = \binom{n}{r} \sum_{s=r}^{n} {(-1)^{(s-r)}} \binom{n-r}{s-r} \lambda_{s},
 \end{equation}
 
 \begin{equation}\label{E:also1to1}
