@@ -14,7 +14,11 @@
 \date{\today}
 
 
-The code is based on the \texttt{gldrm} package, with minor changes to incorporate frequency weights.
+The code is based on the \texttt{gldrm} package, with minor changes to incorporate frequency weights. The code is simplified a bit as well by removing some options:
+\begin{itemize}
+  \item sampling weights are removed
+  \item there is no variance/standard error calculation, and no inference against the null
+\end{itemize}
 
 
 @O R/wgldrm.R @{
@@ -23,7 +27,16 @@ The code is based on the \texttt{gldrm} package, with minor changes to incorpora
 #' This function is called by the main \code{gldrm} function.
 #'
 #' @keywords internal
-gldrmFit <- function(x, y, linkfun, linkinv, mu.eta, mu0=NULL, offset=NULL, sampprobs=NULL,
+gldrm.control <- function(eps=1e-10, maxiter=100, returnfTiltMatrix=TRUE,
+                          returnf0ScoreInfo=FALSE, print=FALSE,
+                          betaStart=NULL, f0Start=NULL)
+{
+    gldrmControl <- as.list(environment())
+    class(gldrmControl) <- "gldrmControl"
+    gldrmControl
+}
+
+gldrmFit <- function(x, y, linkfun, linkinv, mu.eta, mu0=NULL, offset=NULL, weights=NULL,
                      gldrmControl=gldrm.control(), thetaControl=theta.control(),
                      betaControl=beta.control(), f0Control=f0.control())
 {
@@ -44,29 +57,20 @@ gldrmFit <- function(x, y, linkfun, linkinv, mu.eta, mu0=NULL, offset=NULL, samp
     n <- length(y)
     spt <- sort(unique(y))  # observed support
     ySptIndex <- match(y, spt)  # index of each y value within support
-    sptFreq <- table(ySptIndex)
-    attributes(sptFreq) <- NULL
+    # sptFreq <- table(ySptIndex)
+    # attributes(sptFreq) <- NULL
 
-    ## Check sampprobs
-    if (!is.null(sampprobs)) {
-        if (!(is.vector(sampprobs) || is.matrix(sampprobs)) || !is.numeric(sampprobs) || any(sampprobs < 0))
-            stop("sampprobs must be a matrix or vector of nonnegative numeric values")
+  # create a weight matrix for score.logT1 calculation
+  weightsMatrix <- matrix(0, nrow=length(y), ncol=length(unique(y)), 
+        dimnames=list(paste0("obs", 1:length(y)), paste0("response", sort(unique(y)))))
+  # fulfillment of weightMatrix
+  for (obs in 1:length(y)) {
+    weightsMatrix[obs, y[obs]==sort(unique(y))] <- weights[obs]
+  }
+  # weighted version of "sptFreq" 
+  sptFreq.weighted <- colSums(weightsMatrix)
 
-        if (is.vector(sampprobs)) {
-            if (length(sampprobs) != length(spt))
-                stop(paste0("sampprobs vector should have length equal to the ",
-                            "number of unique observed values in the response."))
-            sampprobs <- matrix(sampprobs, nrow=n, ncol=length(sampprobs), byrow=TRUE)
-        } else {
-            # sampprobs must be a matrix
-            if (nrow(sampprobs) != n)
-                stop(paste0("sampprobs matrix should have row dimension equal to ",
-                            "the number of observations."))
-            if (ncol(sampprobs) != length(spt))
-                stop(paste0("sampprobs matrix should have column dimension equal ",
-                            "to the number of unique observe values in the response."))
-        }
-    }
+
 
     ## Initialize offset
     if (is.null(offset))
@@ -74,20 +78,18 @@ gldrmFit <- function(x, y, linkfun, linkinv, mu.eta, mu0=NULL, offset=NULL, samp
 
     ## Initialize mu0 if not provided by user
     if (is.null(mu0)) {
-        mu0 <- mean(y)
-        # mu0 <- linkinv(0)
-        # mu0 <- mean(range(y))
-        # mu0 <- mean(spt)
+       mu0 <- weighted.mean(y, weights)
     } else if (mu0<=min(spt) || mu0>=max(spt)) {
         stop(paste0("mu0 must lie within the range of observed values. Choose a different ",
-                    "value or set mu0=NULL to use the default value, mean(y)."))
+                    "value or set mu0=NULL to use the default value, weighted.mean(y,weights)."))
     }
 
     ## Initialize f0
     if (is.null(f0Start)) {
-        f0 <- sptFreq / n
-        if (mu0 != mean(y))
-            f0 <- getTheta(spt=spt, f0=f0, mu=mu0, sampprobs=NULL, ySptIndex=1, thetaStart=0,
+      # weighted version of initial value for baseline distribution
+        f0 <- sptFreq.weighted / sum(sptFreq.weighted)
+        if (mu0 != weighted.mean(y,weights))
+            f0 <- getTheta(spt=spt, f0=f0, mu=mu0, weights=weights, ySptIndex=1, thetaStart=0,
                            thetaControl=thetaControl)$fTilt[, 1]
     } else {
         if (length(f0Start) != length(spt))
@@ -95,7 +97,7 @@ gldrmFit <- function(x, y, linkfun, linkinv, mu.eta, mu0=NULL, offset=NULL, samp
         if (any(f0Start <= 0))
             stop("All values in f0Start should be strictly positive.")
         f0 <- f0Start / sum(f0Start)
-        f0 <- getTheta(spt=spt, f0=f0, mu=mu0, sampprobs=NULL, ySptIndex=1, thetaStart=0,
+        f0 <- getTheta(spt=spt, f0=f0, mu=mu0, weights=weights, ySptIndex=1, thetaStart=0,
                        thetaControl=thetaControl)$fTilt[, 1]
     }
 
@@ -103,7 +105,7 @@ gldrmFit <- function(x, y, linkfun, linkinv, mu.eta, mu0=NULL, offset=NULL, samp
     ## The starting values returned by lm.fit guarantee that all mu values are
     ## within the support range, even if there is no intercept.
     ## Offset could still create problems.
-    lmcoef <- stats::lm.fit(x, linkfun(mu0) - offset)$coef
+    lmcoef <- stats::lmw.fit(x=x, y=linkfun(mu0) - offset, weights)$coef
     if (is.null(betaStart)) {
         beta <- lmcoef
     } else {
@@ -124,7 +126,7 @@ gldrmFit <- function(x, y, linkfun, linkinv, mu.eta, mu0=NULL, offset=NULL, samp
     stop("Unable to find beta starting values that do not violate convex hull condition.")
 
     ## Get initial theta and log likelihood
-    th <- getTheta(spt=spt, f0=f0, mu=mu, sampprobs=sampprobs, ySptIndex=ySptIndex,
+    th <- getTheta(spt=spt, f0=f0, mu=mu, weights=weights, ySptIndex=ySptIndex,
                    thetaStart=NULL, thetaControl=thetaControl)
     llik <- th$llik
 
@@ -139,7 +141,7 @@ gldrmFit <- function(x, y, linkfun, linkinv, mu.eta, mu0=NULL, offset=NULL, samp
 
         ## update beta (mu) and theta, with fixed f0:
         bb <- getBeta(x=x, y=y, spt=spt, ySptIndex=ySptIndex, f0=f0,
-                      linkinv=linkinv, mu.eta=mu.eta, offset=offset, sampprobs=sampprobs,
+                      linkinv=linkinv, mu.eta=mu.eta, offset=offset, weights=weights,
                       betaStart=beta, thStart=th,
                       thetaControl=thetaControl, betaControl=betaControl)
         th <- bb$th
@@ -149,7 +151,7 @@ gldrmFit <- function(x, y, linkfun, linkinv, mu.eta, mu0=NULL, offset=NULL, samp
 
         ## update f0 and theta, with fixed beta (mu)
         ff <- getf0(y=y, spt=spt, ySptIndex=ySptIndex, sptFreq=sptFreq,
-                    sampprobs=sampprobs, mu=mu, mu0=mu0, f0Start=f0, thStart=th,
+                    weights=weights, mu=mu, mu0=mu0, f0Start=f0, thStart=th,
                     thetaControl=thetaControl, f0Control=f0Control, trace=FALSE)
         th <- ff$th
         llik <- ff$llik
@@ -176,52 +178,12 @@ gldrmFit <- function(x, y, linkfun, linkinv, mu.eta, mu0=NULL, offset=NULL, samp
     bPrime2 <- th$bPrime2
     fTilt <- th$fTilt[cbind(ySptIndex, seq_along(ySptIndex))]
 
-    ## Compute betaHat variance
-    if (!is.null(sampprobs)) {
-        q <- th$bPrime2SW / th$bPrime2
-        w <- dmudeta^2 / th$bPrime2 * q
-        wSqrt <- sqrt(w)
-    } else {
-        w <- dmudeta^2 / th$bPrime2
-        wSqrt <- sqrt(w)
-    }
-    if (any(wSqrt == Inf)) {
-        ## if any weights are infinite, return all standard errors as zero
-        varbeta <- matrix(0, nrow=length(beta), ncol=length(beta))
-    } else {
-        wtdX <- wSqrt * x
-        # varbeta <- chol2inv(qr.R(qr(wtdX)))  # not stable
-        # varbeta <- solve(crossprod(wtdX))  # not stable
-        varbeta <- tcrossprod(backsolve(qr.R(qr(wtdX)), diag(ncol(wtdX))))
-    }
-
-    ## Compute standard errors
-    seBeta <- sqrt(diag(varbeta))
-    seEta <- sqrt(pmax(0, apply(x, 1, function(xx) crossprod(xx, varbeta) %*% xx)))
-    seMu <- dmudeta * seEta
-
     ## Add NA values back into beta vector and varbeta if covariate matrix is not full rank
     nBeta <- length(beta) + sum(naID)
-    betaTemp <- seBetaTemp <- rep(NA, nBeta)
+    betaTemp <- rep(NA, nBeta)
     betaTemp[!naID] <- beta
-    seBetaTemp[!naID] <- seBeta
     beta <- betaTemp
-    seBeta <- seBetaTemp
-    varbetaTemp <- matrix(NA, nrow=nBeta, ncol=nBeta)
-    varbetaTemp[!naID, !naID] <- varbeta
-    varbeta <- varbetaTemp
-
-    # Inference vs. null model
-    containsIntercept <- any(apply(x, 2, function(xx) all(xx == xx[1])))
-    if (!containsIntercept) {
-        llikNull <- lr.stat <- lr.df <- lr.pval <- NA
-    } else {
-        xrank <- ncol(x)  # columns of x have already been dropped, if necessary to make x full rank
-        lr.df <- c(max(xrank-1, 1), n-xrank)  # force df[1] >= 1 just in case the full model is a null model
-        llikNull <- sum(sptFreq * log(sptFreq / n))
-        lr.stat <- 2 * (llik - llikNull) / lr.df[1]
-        lr.pval <- 1 - stats::pf(lr.stat, lr.df[1], lr.df[2])
-    }
+ 
 
     ## Return gldrm object
     attributes(beta) <- NULL
@@ -229,9 +191,7 @@ gldrmFit <- function(x, y, linkfun, linkinv, mu.eta, mu0=NULL, offset=NULL, samp
 
     fit <- list(conv=conv, iter=iter, llik=llik,
                 beta=beta, mu=mu, eta=eta, f0=f0, spt=spt, mu0=mu0,
-                varbeta=varbeta, seBeta=seBeta, seMu=seMu, seEta=seEta,
-                theta=theta, bPrime=bPrime, bPrime2=bPrime2, fTilt=fTilt, sampprobs=sampprobs,
-                llikNull=llikNull, lr.stat=lr.stat, lr.df=lr.df, lr.pval=lr.pval)
+                theta=theta, bPrime=bPrime, bPrime2=bPrime2, fTilt=fTilt, weights=weights)
 
     if (returnfTiltMatrix)
         fit$fTiltMatrix <- t(th$fTilt)
@@ -285,7 +245,7 @@ gldrmFit <- function(x, y, linkfun, linkinv, mu.eta, mu0=NULL, offset=NULL, samp
 #' }
 #'
 #' @keywords internal
-getBeta <- function(x, y, spt, ySptIndex, f0, linkinv, mu.eta, offset, sampprobs,
+getBeta <- function(x, y, spt, ySptIndex, f0, linkinv, mu.eta, offset, weights,
                     betaStart, thStart,
                     thetaControl=theta.control(), betaControl=beta.control())
 {
@@ -319,23 +279,19 @@ getBeta <- function(x, y, spt, ySptIndex, f0, linkinv, mu.eta, offset, sampprobs
         llikold <- llik
 
         ## Compute weighted least squares update
-        if (!is.null(sampprobs)) {
-            q <- th$bPrime2SW / th$bPrime2
-            w <- dmudeta^2 / th$bPrime2 * q
-            ymm <- y - th$bPrimeSW
-            r <- ymm / (q * dmudeta)
-        } else {
-            w <- dmudeta^2 / th$bPrime2
-            ymm <- y - mu
-            r <- ymm / dmudeta
-        }
+        w <- weights * dmudeta^2 / th$bPrime2
+        ymm <- y - mu
+        r <-  ymm / dmudeta
+        
         yeqmu <- which(abs(ymm) < 1e-15)
         w[yeqmu] <- 0  # prevent 0/0
         r[yeqmu] <- 0  # prevent 0/0
+        
         if (any(w==Inf)) break
+        
         betastep <- unname(coef(lm.wfit(x, r, w)))
-            # qr.coef(qr(wSqrt*x), wSqrt*r) no longer works for some singular matrices
         betastep[is.na(betastep)] <- 0
+        
         ## Let q = b''*(theta) / b''(theta)
         ## W = diag{dmudeta^2 / b''(theta) * q}
         ## r = (y - b'*(theta)) / (q * dmudeta)
@@ -350,7 +306,7 @@ getBeta <- function(x, y, spt, ySptIndex, f0, linkinv, mu.eta, offset, sampprobs
         if (min(mu)<sptMin || max(mu)>sptMax) {
             llik <- -Inf
         } else {
-            th <- getTheta(spt=spt, f0=f0, mu=mu, sampprobs=sampprobs, ySptIndex=ySptIndex,
+            th <- getTheta(spt=spt, f0=f0, mu=mu, weights=weights, ySptIndex=ySptIndex,
                            thetaStart=thold$theta, thetaControl=thetaControl)
             llik <- th$llik
         }
@@ -364,7 +320,7 @@ getBeta <- function(x, y, spt, ySptIndex, f0, linkinv, mu.eta, offset, sampprobs
             if (min(mu)<sptMin || max(mu)>sptMax) {
                 llik <- -Inf
             } else {
-                th <- getTheta(spt=spt, f0=f0, mu=mu, sampprobs=sampprobs, ySptIndex=ySptIndex,
+                th <- getTheta(spt=spt, f0=f0, mu=mu, weights=weights, ySptIndex=ySptIndex,
                                thetaStart=thold$theta, thetaControl=thetaControl)
                 llik <- th$llik
             }
@@ -476,7 +432,7 @@ theta.control <- function(eps=1e-10, maxiter=100, maxhalf=20, maxtheta=500,
 #' }
 #'
 #' @keywords internal
-getTheta <- function(spt, f0, mu, sampprobs, ySptIndex, thetaStart=NULL, thetaControl=theta.control())
+getTheta <- function(spt, f0, mu, weights, ySptIndex, thetaStart=NULL, thetaControl=theta.control())
 {
     ## Extract control arguments
     if (class(thetaControl) != "thetaControl")
@@ -605,21 +561,17 @@ getTheta <- function(spt, f0, mu, sampprobs, ySptIndex, thetaStart=NULL, thetaCo
         s <- s[!conv[s] & !maxedOut[s]]
     }
 
-    ## Obtain conditional distribution of sampled observations, if sampling weights are included
-    if (!(is.null(sampprobs))) {
-        fTiltSW <- fTilt * t(sampprobs)
-        fTiltSW <- fTiltSW / rep(colSums(fTiltSW), each=nrow(fTiltSW))
-        bPrimeSW <- colSums(spt * fTiltSW)
-        bPrime2SW <- colSums(outer(spt, bPrimeSW, "-")^2 * fTiltSW)
-    } else {
-        fTiltSW <- fTilt
-        bPrimeSW <- bPrime
-        bPrime2SW <- bPrime2
-    }
+
+    fTiltSW <- fTilt
+    bPrimeSW <- bPrime
+    bPrime2SW <- bPrime2
+  
 
     ## Calculate log-likelihood
-    llik <- sum(log(fTiltSW[cbind(ySptIndex, seq_along(ySptIndex))]))
-
+   # llik <- sum(log(fTiltSW[cbind(ySptIndex, seq_along(ySptIndex))]))
+    fTiltSW.extracted <- fTiltSW[cbind(ySptIndex, seq_along(ySptIndex))]
+    llik <- sum(weights[fTiltSW.extracted>0] * log(fTiltSW.extracted[fTiltSW.extracted>0]))
+ 
     list(theta=theta, fTilt=fTilt, bPrime=bPrime, bPrime2=bPrime2,
          fTiltSW=fTiltSW, bPrimeSW=bPrimeSW, bPrime2SW=bPrime2SW,
          llik=llik, conv=conv, iter=iter)
@@ -628,27 +580,6 @@ getTheta <- function(spt, f0, mu, sampprobs, ySptIndex, thetaStart=NULL, thetaCo
 
 
 @{ R/wgldrm.R @{
-################################################################################
-# These functions are only used for the 2 term approximate information
-# (method = "approx2")
-################################################################################
-
-## Computes inverse of a 2x2 matrix
-invert2by2 <- function(m) {
-    matrix(c(m[4], -m[2], -m[3], m[1]), nrow=2) /
-        (m[1] * m[4] - m[2] * m[3])
-}
-
-## Computes (A+BCB')^{-1}, where Ainv is available and B is rank 1 or 2
-## Adiag is an indicator of whether A is a diagonal matrix
-woodbury <- function(Ainv, Cinv, B) {
-    AinvB <- Ainv %*% B
-    mid <- Cinv + crossprod(B, AinvB)
-    midinv <- invert2by2(mid)
-    inv <- Ainv - AinvB %*% tcrossprod(midinv, AinvB)
-    inv
-}
-################################################################################
 
 #' Control arguments for f0 update algorithm
 #'
@@ -708,7 +639,7 @@ f0.control <- function(eps=1e-10, maxiter=1000, maxhalf=20, maxlogstep=2)
 #' }
 #'
 #' @keywords internal
-getf0 <- function(y, spt, ySptIndex, sptFreq, sampprobs, mu, mu0, f0Start, thStart,
+getf0 <- function(y, spt, ySptIndex, sptFreq, weights, mu, mu0, f0Start, thStart,
                   thetaControl=theta.control(), f0Control=f0.control(), trace=FALSE)
 {
     ## Extract theta control arguments
@@ -723,11 +654,10 @@ getf0 <- function(y, spt, ySptIndex, sptFreq, sampprobs, mu, mu0, f0Start, thSta
     th <- thStart
     llik <- th$llik
     score.log <- NULL
-    if (is.null(sampprobs)) {
-        smm <- outer(spt, mu, "-")
-        ymm <- y - mu
-        yeqmu <- which(abs(ymm) < 1e-15)
-    }
+    smm <- outer(spt, mu, "-")
+    ymm <- y - mu
+    yeqmu <- which(abs(ymm) < 1e-15)
+    
 
     conv <- FALSE
     iter <- 0
@@ -736,29 +666,33 @@ getf0 <- function(y, spt, ySptIndex, sptFreq, sampprobs, mu, mu0, f0Start, thSta
 
         # Score calculation
         score.logOld <- score.log
-        if (!is.null(sampprobs)) {
-            smm <- outer(spt, th$bPrimeSW, "-")
-            ymm <- y - th$bPrimeSW
-            yeqmu <- which(abs(ymm) < 1e-15)
-        }
+        
         fTiltSWSums <- rowSums(th$fTiltSW)
+        fTiltSWSumsWeighted <- apply(th$fTiltSW, MARGIN=1, function(x) sum(weights * x)) 
         smmfTiltSW <- smm * th$fTiltSW
         ystd <- ymm / th$bPrime2SW
+        ystdWeighted <- weights * ystd
         ystd[yeqmu] <- 0  # prevent 0/0
-        score.logT1 <- sptFreq
-        score.logT2 <- fTiltSWSums
-        score.logT3 <- c(smmfTiltSW %*% ystd)
+        ystdWeighted[yeqmu] <- 0  # prevent 0/0
+    
+
+        score.logT1 <- sptFreq.weighted
+        score.logT2 <- fTiltSWSumsWeighted
+        score.logT3 <- c(smmfTiltSW %*% ystdWeighted)
         score.log <- score.logT1 - score.logT2 - score.logT3
 
         # Inverse info, score step, and f0 step are on the log scale (score is not)
         if (iter == 1) {
-            d1 <- min(fTiltSWSums)  # max inverse diagonal of first information term, on log scale
+            d1 <- min(fTiltSWSumsWeighted)  # max inverse diagonal of first information term, on log scale
             d2 <- max(abs(score.log)) / maxlogstep
             d <- max(d1, d2)
             infoinvBFGS.log <- diag(1/d, nrow=length(f0))
         } else {
             scorestep.log <- score.log - score.logOld
-            f0step.log <- log(f0) - log(f0old)
+           # f0step.log <- log(f0) - log(f0old)
+            # to prevent the 0/0 situation 
+            ratiof0f0old <- f0 / f0old
+            ratiof0f0old[is.na(ratiof0f0old)] <- 1
             sy <- sum(f0step.log * scorestep.log)
             yiy <- c(crossprod(scorestep.log, infoinvBFGS.log %*% scorestep.log))
             iys <- tcrossprod(infoinvBFGS.log %*% scorestep.log, f0step.log)
@@ -780,12 +714,12 @@ getf0 <- function(y, spt, ySptIndex, sptFreq, sampprobs, mu, mu0, f0Start, thSta
         f0 <- exp(log(f0) + logstep)
         # Scale and tilt f0
         f0 <- f0 / sum(f0)
-        f0 <- getTheta(spt=spt, f0=f0, mu=mu0, sampprobs=NULL, ySptIndex=1,
+        f0 <- getTheta(spt=spt, f0=f0, mu=mu0, weights=weights, ySptIndex=1,
                        thetaStart=0, thetaControl=thetaControl)$fTilt[, 1]
         # Update theta and likelihood
         thold <- th
         llikold <- llik
-        th <- getTheta(spt=spt, f0=f0, mu=mu, sampprobs=sampprobs, ySptIndex=ySptIndex,
+        th <- getTheta(spt=spt, f0=f0, mu=mu, weights=weights, ySptIndex=ySptIndex,
                        thetaStart=th$theta, thetaControl=thetaControl)
         llik <- th$llik
         conv <- abs((llik - llikold) / (llik + 1e-100)) < eps
@@ -807,9 +741,9 @@ getf0 <- function(y, spt, ySptIndex, sptFreq, sampprobs, mu, mu0, f0Start, thSta
 
                 f0 <- exp((log(f0) + log(f0old)) / 2)
                 f0 <- f0 / sum(f0)
-                f0 <- getTheta(spt=spt, f0=f0, mu=mu0, sampprobs=NULL, ySptIndex=1,
+                f0 <- getTheta(spt=spt, f0=f0, mu=mu0, weights=weights, ySptIndex=1,
                                thetaStart=0, thetaControl=thetaControl)$fTilt[, 1]
-                th <- getTheta(spt=spt, f0=f0, mu=mu, sampprobs=sampprobs, ySptIndex=ySptIndex,
+                th <- getTheta(spt=spt, f0=f0, mu=mu, weights=weights, ySptIndex=ySptIndex,
                                thetaStart=th$theta, thetaControl=thetaControl)
                 llik <- th$llik
                 infoinvBFGS.log <- infoinvBFGS.log / 2
@@ -842,27 +776,34 @@ getf0 <- function(y, spt, ySptIndex, sptFreq, sampprobs, mu, mu0, f0Start, thSta
     }
 
     # Final score calculation
-    if (!is.null(sampprobs)) {
         smm <- outer(spt, th$bPrimeSW, "-")
         ymm <- y - th$bPrimeSW
         yeqmu <- which(abs(ymm) < 1e-15)
-    }
-    fTiltSWSums <- rowSums(th$fTiltSW)
-    smmfTiltSW <- smm * th$fTiltSW
-    ystd <- ymm / th$bPrime2SW
-    ystd[yeqmu] <- 0  # prevent 0/0
-    score.logT1 <- sptFreq
-    score.logT2 <- fTiltSWSums
-    score.logT3 <- c(smmfTiltSW %*% ystd)
-    score.log <- score.logT1 - score.logT2 - score.logT3
-
-    # Final info calculation
-    info.logT1 <- diag(fTiltSWSums)
-    info.logT2 <- tcrossprod(th$fTiltSW)
-    info.logT3 <- tcrossprod(smmfTiltSW, smmfTiltSW * rep(ystd, each=nrow(smmfTiltSW)))
-    info.log <- info.logT1 - info.logT2 - info.logT3
+        
+          fTiltSWSums <- rowSums(th$fTiltSW)
+  fTiltSWSumsWeighted <- apply(th$fTiltSW, MARGIN=1, function(x) sum(weights * x)) 
+  smmfTiltSW <- smm * th$fTiltSW
+  ystd <- ymm / th$bPrime2SW
+  ystdWeighted <- weights * ystd
+  ystd[yeqmu] <- 0  # prevent 0/0
+  ystdWeighted[yeqmu] <- 0  # prevent 0/0
+  ystd[yeqmu] <- 0  # prevent 0/0
+  
+  score.logT1 <- sptFreq.weighted
+  score.logT2 <- fTiltSWSumsWeighted
+  score.logT3 <- c(smmfTiltSW %*% ystdWeighted)
+  score.log <- score.logT1 - score.logT2 - score.logT3
+  
+  # Final info calculation
+  info.logT1 <- diag(fTiltSWSumsWeighted)
+  info.logT2 <- tcrossprod(th$fTiltSW)
+  info.logT3 <- tcrossprod(smmfTiltSW, smmfTiltSW * rep(ystdWeighted, each=nrow(smmfTiltSW)))
+  info.log <- info.logT1 - info.logT2 - info.logT3
+  
 
     list(f0=f0, llik=llik, th=th, conv=conv, iter=iter, nhalf=nhalf,
          score.log=score.log, info.log=info.log)
 }
 @}
+
+\end{document}
