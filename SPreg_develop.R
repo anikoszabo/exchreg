@@ -2,6 +2,7 @@ library(devtools)
 source('z:/RForge/Nuweb.R')
 #source('/home/aszabo/RForge/Nuweb_linux.R')
 
+
 run_nuweb(file="SPregress.w", path=getwd())
 run_nuweb(file="SPGLM.w", path=getwd())
 run_nuweb(file="wgldrm.w", path=getwd())
@@ -9,6 +10,8 @@ run_nuweb(file="wgldrm.w", path=getwd())
 source('R/SPreg.R', echo=FALSE)
 source('R/SPGLM.R', echo=FALSE)
 source('R/wgldrm.R', echo=FALSE)
+
+shell("cd c:/exchreg/ && texify --pdf --quiet --run-viewer --clean SPGLM.tex")
 
 data(shelltox)
 ######### Testing wGLDRM
@@ -149,14 +152,14 @@ matplot(t(l), type="l")
 
 
 # create native routine registration file
-tools::package_native_routine_registration_skeleton("z://RForge/corrbin/pkg/CorrBin",
-                                                    con="z://RForge/corrbin/pkg/CorrBin/src/init.c")
+#tools::package_native_routine_registration_skeleton("z://RForge/corrbin/pkg/CorrBin",
+#                                                    con="z://RForge/corrbin/pkg/CorrBin/src/init.c")
 
-document(cb)
-run_examples(cb)  # or dev_example("ran.CMData")
-load_all(cb)
+#document(cb)
+#run_examples(cb)  # or dev_example("ran.CMData")
+#load_all(cb)
 
-build(cb)
-check(cb,  check_dir = "z:/RForge", check_version = TRUE, cran = TRUE)
+#build(cb)
+#check(cb,  check_dir = "z:/RForge", check_version = TRUE, cran = TRUE)
 
 
