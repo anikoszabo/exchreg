@@ -3,10 +3,88 @@ source('z:/RForge/Nuweb.R')
 #source('/home/aszabo/RForge/Nuweb_linux.R')
 
 run_nuweb(file="SPregress.w", path=getwd())
+run_nuweb(file="SPGLM.w", path=getwd())
+run_nuweb(file="wgldrm.w", path=getwd())
 
 source('R/SPreg.R', echo=FALSE)
+source('R/SPGLM.R', echo=FALSE)
+source('R/wgldrm.R', echo=FALSE)
 
 data(shelltox)
+######### Testing wGLDRM
+run_gldrm <- 
+function (formula, data = NULL, link = "identity", mu0 = NULL,  weights=NULL,
+          offset = NULL, gldrmControl = gldrm.control(), thetaControl = theta.control(), 
+          betaControl = beta.control(), f0Control = f0.control()) {
+  if (is.null(weights)) weights <- rep(1, nrow(data))
+  mf <- model.frame(formula, data)
+  x <- stats::model.matrix(attr(mf, "terms"), mf)
+  attributes(x)[c("assign", "contrasts")] <- NULL
+  y <- stats::model.response(mf, type = "numeric")
+  if (is.null(offset)) 
+    offset <- rep(0, nrow(x))
+  if (length(offset) != nrow(x)) 
+    stop("offset should be NULL or a vector with length equal to the number of observations.")
+  if (is.character(link)) {
+    link <- stats::make.link(link)
+  }
+  else if (!is.list(link) || !(all(c("linkfun", "linkinv", 
+                                     "mu.eta") %in% names(link)))) {
+    stop(paste0("link should be a character string or a list containing ", 
+                "functions named linkfun, linkinv, and mu.eta"))
+  }
+  yMin <- min(y)
+  yMax <- max(y)
+  yMed <- (yMin + yMax)/2
+  Z <- function(y) (y - yMed) * 2/(yMax - yMin)
+  Y <- function(z) z * (yMax - yMin)/2 + yMed
+  z <- Z(y)
+  linkfunZ <- function(muZ) link$linkfun(Y(muZ))
+  linkinvZ <- function(eta) Z(link$linkinv(eta))
+  mu.etaZ <- function(eta) 2/(yMax - yMin) * link$mu.eta(eta)
+  if (is.null(mu0)) {
+    mu0Z <- NULL
+  }
+  else {
+    mu0Z <- Z(mu0)
+  }
+  modZ <- gldrmFit(x = x, y = z, linkfun = linkfunZ, linkinv = linkinvZ, 
+                   mu.eta = mu.etaZ, mu0 = mu0Z, offset = offset, weights = weights, 
+                   gldrmControl = gldrmControl, thetaControl = thetaControl, 
+                   betaControl = betaControl, f0Control = f0Control)
+  modZ$mu <- Y(modZ$mu)
+  muetaAdj <- link$mu.eta(modZ$eta)/mu.etaZ(modZ$eta)
+  modZ$seMu <- modZ$seMu * muetaAdj
+  modZ$mu0 <- Y(modZ$mu0)
+  modZ$spt <- Y(modZ$spt)
+  modZ$theta <- modZ$theta * 2/(yMax - yMin)
+  modZ$bPrime <- Y(modZ$bPrime)
+  modZ$bPrime2 <- modZ$bPrime2 * ((yMax - yMin)/2)^2
+  names(modZ$beta) <- colnames(x)
+  modZ$formula <- formula
+  modZ$data <- data.frame(mf)
+  modZ$link <- link
+  modZ$offset <- offset
+  modZ
+}
+
+sh2 <- shelltox[rep(1:nrow(shelltox), shelltox$Freq), ]
+# full dataset without frequency weights
+res1 <- run_gldrm(I(NResp/ClusterSize) ~ Trt, data=sh2, link="logit")
+# reduced dataset with frequency weights
+res2 <- run_gldrm(I(NResp/ClusterSize) ~ Trt, data=shelltox, link="logit", weights=shelltox$Freq)
+# rescale weights to a sum of 1
+res3 <- run_gldrm(I(NResp/ClusterSize) ~ Trt, data=shelltox, link="logit", weights=shelltox$Freq/sum(shelltox$Freq))
+
+all.equal(res1[c("conv", "iter", "beta", "f0", "mu0", "llik")],
+          res2[c("conv", "iter", "beta", "f0", "mu0", "llik")])
+
+all.equal(res1[c("conv", "iter", "beta", "f0", "mu0", "llik")],
+          c(res3[c("conv", "iter", "beta", "f0", "mu0")], llik = res3$llik * sum(shelltox$Freq)))
+
+######### Testing SPreg
+
+
 a <- sprr(cbind(NResp, ClusterSize-NResp) ~ Trt, data=shelltox, weights=shelltox$Freq,
                 control=list(eps=0.001, maxit=1000), 
           start = list(mu1=0.4))

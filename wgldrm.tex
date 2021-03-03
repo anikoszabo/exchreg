@@ -1,0 +1,882 @@
+\newcommand{\NWtarget}[2]{#2}
+\newcommand{\NWlink}[2]{#2}
+\newcommand{\NWtxtMacroDefBy}{Fragment defined by}
+\newcommand{\NWtxtMacroRefIn}{Fragment referenced in}
+\newcommand{\NWtxtMacroNoRef}{Fragment never referenced}
+\newcommand{\NWtxtDefBy}{Defined by}
+\newcommand{\NWtxtRefIn}{Referenced in}
+\newcommand{\NWtxtNoRef}{Not referenced}
+\newcommand{\NWtxtFileDefBy}{File defined by}
+\newcommand{\NWtxtIdentsUsed}{Uses:}
+\newcommand{\NWtxtIdentsNotUsed}{Never used}
+\newcommand{\NWtxtIdentsDefed}{Defines:}
+\newcommand{\NWsep}{${\diamond}$}
+\newcommand{\NWnotglobal}{(not defined globally)}
+\newcommand{\NWuseHyperlinks}{}
+\documentclass[reqno]{amsart}
+\usepackage[margin=1in]{geometry}
+\usepackage[colorlinks=true,linkcolor=blue]{hyperref}
+\renewcommand{\NWtarget}[2]{\hypertarget{#1}{#2}}
+\renewcommand{\NWlink}[2]{\hyperlink{#1}{#2}}
+\newcommand{\bv}{\mathbf{v}}
+\newcommand{\bq}{\mathbf{q}}
+\newcommand{\bpi}{\text{\boldmath $\pi$}}
+\newcommand{\leqst}{\mathrel{\preceq^{st}}}
+\newcommand{\geqst}{\mathrel{\succeq^{st}}}
+
+\title{Generalized linear density ratio model (GLDRM) with frequency weights}
+\author{Aniko Szabo}
+\date{\today}
+
+
+The code is based on the \texttt{gldrm} package, with minor changes to incorporate frequency weights. The code is simplified a bit as well by removing some options:
+\begin{itemize}
+  \item sampling weights are removed
+  \item there is no variance/standard error calculation, and no inference against the null
+\end{itemize}
+
+
+\begin{flushleft} \small\label{scrap1}\raggedright\small
+\NWtarget{nuweb?}{} \verb@"R/wgldrm.R"@\nobreak\ {\footnotesize {?}}$\equiv$
+\vspace{-1ex}
+\begin{list}{}{} \item
+\mbox{}\verb@@\\
+\mbox{}\verb@#' Main optimization function@\\
+\mbox{}\verb@#'@\\
+\mbox{}\verb@#' This function is called by the main \code{gldrm} function.@\\
+\mbox{}\verb@#'@\\
+\mbox{}\verb@#' @{\tt @}\verb@keywords internal@\\
+\mbox{}\verb@gldrm.control <- function(eps=1e-10, maxiter=100, returnfTiltMatrix=TRUE,@\\
+\mbox{}\verb@                          returnf0ScoreInfo=FALSE, print=FALSE,@\\
+\mbox{}\verb@                          betaStart=NULL, f0Start=NULL)@\\
+\mbox{}\verb@{@\\
+\mbox{}\verb@    gldrmControl <- as.list(environment())@\\
+\mbox{}\verb@    class(gldrmControl) <- "gldrmControl"@\\
+\mbox{}\verb@    gldrmControl@\\
+\mbox{}\verb@}@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@gldrmFit <- function(x, y, linkfun, linkinv, mu.eta, mu0=NULL, offset=NULL, weights=NULL,@\\
+\mbox{}\verb@                     gldrmControl=gldrm.control(), thetaControl=theta.control(),@\\
+\mbox{}\verb@                     betaControl=beta.control(), f0Control=f0.control())@\\
+\mbox{}\verb@{@\\
+\mbox{}\verb@    ## Extract control arguments@\\
+\mbox{}\verb@    if (class(gldrmControl) != "gldrmControl")@\\
+\mbox{}\verb@        stop("gldrmControl must be an object of class \'gldrmControl\' returned by@\\
+\mbox{}\verb@              gldrmControl() function.")@\\
+\mbox{}\verb@    eps <- gldrmControl$eps@\\
+\mbox{}\verb@    maxiter <- gldrmControl$maxiter@\\
+\mbox{}\verb@    returnHess <- gldrmControl$returnHess@\\
+\mbox{}\verb@    returnfTiltMatrix <- gldrmControl$returnfTiltMatrix@\\
+\mbox{}\verb@    returnf0ScoreInfo <- gldrmControl$returnf0ScoreInfo@\\
+\mbox{}\verb@    print <- gldrmControl$print@\\
+\mbox{}\verb@    betaStart <- gldrmControl$betaStart@\\
+\mbox{}\verb@    f0Start <- gldrmControl$f0Start@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    ## Tabulation and summary of responses used in estimating f0@\\
+\mbox{}\verb@    n <- length(y)@\\
+\mbox{}\verb@    spt <- sort(unique(y))  # observed support@\\
+\mbox{}\verb@    ySptIndex <- match(y, spt)  # index of each y value within support@\\
+\mbox{}\verb@    # sptFreq <- table(ySptIndex)@\\
+\mbox{}\verb@    # attributes(sptFreq) <- NULL@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@  # create a weight matrix for score.logT1 calculation@\\
+\mbox{}\verb@  weightsMatrix <- matrix(0, nrow=length(y), ncol=length(unique(y)), @\\
+\mbox{}\verb@        dimnames=list(paste0("obs", 1:length(y)), paste0("response", sort(unique(y)))))@\\
+\mbox{}\verb@  # fulfillment of weightMatrix@\\
+\mbox{}\verb@  for (obs in 1:length(y)) {@\\
+\mbox{}\verb@    weightsMatrix[obs, y[obs]==sort(unique(y))] <- weights[obs]@\\
+\mbox{}\verb@  }@\\
+\mbox{}\verb@  # weighted version of "sptFreq" @\\
+\mbox{}\verb@  sptFreq.weighted <- colSums(weightsMatrix)@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    ## Initialize offset@\\
+\mbox{}\verb@    if (is.null(offset))@\\
+\mbox{}\verb@        offset <- rep(0, n)@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    ## Initialize mu0 if not provided by user@\\
+\mbox{}\verb@    if (is.null(mu0)) {@\\
+\mbox{}\verb@       mu0 <- weighted.mean(y, weights)@\\
+\mbox{}\verb@    } else if (mu0<=min(spt) || mu0>=max(spt)) {@\\
+\mbox{}\verb@        stop(paste0("mu0 must lie within the range of observed values. Choose a different ",@\\
+\mbox{}\verb@                    "value or set mu0=NULL to use the default value, weighted.mean(y,weights)."))@\\
+\mbox{}\verb@    }@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    ## Initialize f0@\\
+\mbox{}\verb@    if (is.null(f0Start)) {@\\
+\mbox{}\verb@      # weighted version of initial value for baseline distribution@\\
+\mbox{}\verb@        f0 <- sptFreq.weighted / sum(sptFreq.weighted)@\\
+\mbox{}\verb@        if (mu0 != weighted.mean(y,weights))@\\
+\mbox{}\verb@            f0 <- getTheta(spt=spt, f0=f0, mu=mu0, weights=weights, ySptIndex=1, thetaStart=0,@\\
+\mbox{}\verb@                           thetaControl=thetaControl)$fTilt[, 1]@\\
+\mbox{}\verb@    } else {@\\
+\mbox{}\verb@        if (length(f0Start) != length(spt))@\\
+\mbox{}\verb@            stop("Length of f0Start should equal number of unique values in the response.")@\\
+\mbox{}\verb@        if (any(f0Start <= 0))@\\
+\mbox{}\verb@            stop("All values in f0Start should be strictly positive.")@\\
+\mbox{}\verb@        f0 <- f0Start / sum(f0Start)@\\
+\mbox{}\verb@        f0 <- getTheta(spt=spt, f0=f0, mu=mu0, weights=weights, ySptIndex=1, thetaStart=0,@\\
+\mbox{}\verb@                       thetaControl=thetaControl)$fTilt[, 1]@\\
+\mbox{}\verb@    }@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    ## Initialize beta@\\
+\mbox{}\verb@    ## The starting values returned by lm.fit guarantee that all mu values are@\\
+\mbox{}\verb@    ## within the support range, even if there is no intercept.@\\
+\mbox{}\verb@    ## Offset could still create problems.@\\
+\mbox{}\verb@    lmcoef <- stats::lm.wfit(x=x, y=linkfun(mu0) - offset, weights)$coef@\\
+\mbox{}\verb@    if (is.null(betaStart)) {@\\
+\mbox{}\verb@        beta <- lmcoef@\\
+\mbox{}\verb@    } else {@\\
+\mbox{}\verb@        if (length(betaStart) != ncol(x))@\\
+\mbox{}\verb@            stop("Length of betaStart should equal the number of columns in the model matrix.")@\\
+\mbox{}\verb@      beta <- betaStart@\\
+\mbox{}\verb@    }@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    ## Drop coefficients if x is not full rank (add NA values back at the end)@\\
+\mbox{}\verb@    naID <- is.na(lmcoef)@\\
+\mbox{}\verb@    beta <- beta[!naID]@\\
+\mbox{}\verb@    x <- x[, !naID, drop=FALSE]@\\
+\mbox{}\verb@    eta <- c(x %*% beta + offset)@\\
+\mbox{}\verb@    mu <- linkinv(eta)@\\
+\mbox{}\verb@    if (ncol(x) >= n)@\\
+\mbox{}\verb@    stop("gldrm requires n > p.")@\\
+\mbox{}\verb@    if (any(mu<min(spt) | mu>max(spt)))@\\
+\mbox{}\verb@    stop("Unable to find beta starting values that do not violate convex hull condition.")@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    ## Get initial theta and log likelihood@\\
+\mbox{}\verb@    th <- getTheta(spt=spt, f0=f0, mu=mu, weights=weights, ySptIndex=ySptIndex,@\\
+\mbox{}\verb@                   thetaStart=NULL, thetaControl=thetaControl)@\\
+\mbox{}\verb@    llik <- th$llik@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    conv <- FALSE@\\
+\mbox{}\verb@    iter <- 0@\\
+\mbox{}\verb@    while (!conv && iter <= maxiter)@\\
+\mbox{}\verb@    {@\\
+\mbox{}\verb@        iter <- iter+1@\\
+\mbox{}\verb@        betaold <- beta@\\
+\mbox{}\verb@        f0old <- f0@\\
+\mbox{}\verb@        llikold <- llik@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@        ## update beta (mu) and theta, with fixed f0:@\\
+\mbox{}\verb@        bb <- getBeta(x=x, y=y, spt=spt, ySptIndex=ySptIndex, f0=f0,@\\
+\mbox{}\verb@                      linkinv=linkinv, mu.eta=mu.eta, offset=offset, weights=weights,@\\
+\mbox{}\verb@                      betaStart=beta, thStart=th,@\\
+\mbox{}\verb@                      thetaControl=thetaControl, betaControl=betaControl)@\\
+\mbox{}\verb@        th <- bb$th@\\
+\mbox{}\verb@        llik <- bb$llik@\\
+\mbox{}\verb@        mu <- bb$mu@\\
+\mbox{}\verb@        beta <- bb$beta@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@        ## update f0 and theta, with fixed beta (mu)@\\
+\mbox{}\verb@        ff <- getf0(y=y, spt=spt, ySptIndex=ySptIndex, sptFreq=sptFreq,@\\
+\mbox{}\verb@                    weights=weights, sptFreq.weighted=sptFreq.weighted, mu=mu, mu0=mu0, f0Start=f0, thStart=th,@\\
+\mbox{}\verb@                    thetaControl=thetaControl, f0Control=f0Control, trace=FALSE)@\\
+\mbox{}\verb@        th <- ff$th@\\
+\mbox{}\verb@        llik <- ff$llik@\\
+\mbox{}\verb@        f0 <- ff$f0@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@        ## Check convergence@\\
+\mbox{}\verb@        del <- abs((llik - llikold) / llik)@\\
+\mbox{}\verb@        if (llik == 0) del <- 0@\\
+\mbox{}\verb@        conv <- del < eps@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@        if (print) {@\\
+\mbox{}\verb@            cat("iteration ", iter,@\\
+\mbox{}\verb@                "\nrelative change in log-likelihood = ", del,@\\
+\mbox{}\verb@                "  (eps = ", eps, ")\n")@\\
+\mbox{}\verb@        }@\\
+\mbox{}\verb@    }@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    ## Final values@\\
+\mbox{}\verb@    eta <- linkfun(mu)@\\
+\mbox{}\verb@    dmudeta <- mu.eta(eta)@\\
+\mbox{}\verb@    llik <- ff$llik@\\
+\mbox{}\verb@    theta <- th$theta@\\
+\mbox{}\verb@    bPrime <- th$bPrime@\\
+\mbox{}\verb@    bPrime2 <- th$bPrime2@\\
+\mbox{}\verb@    fTilt <- th$fTilt[cbind(ySptIndex, seq_along(ySptIndex))]@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    ## Add NA values back into beta vector and varbeta if covariate matrix is not full rank@\\
+\mbox{}\verb@    nBeta <- length(beta) + sum(naID)@\\
+\mbox{}\verb@    betaTemp <- rep(NA, nBeta)@\\
+\mbox{}\verb@    betaTemp[!naID] <- beta@\\
+\mbox{}\verb@    beta <- betaTemp@\\
+\mbox{}\verb@ @\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    ## Return gldrm object@\\
+\mbox{}\verb@    attributes(beta) <- NULL@\\
+\mbox{}\verb@    attributes(f0) <- NULL@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    fit <- list(conv=conv, iter=iter, llik=llik,@\\
+\mbox{}\verb@                beta=beta, mu=mu, eta=eta, f0=f0, spt=spt, mu0=mu0,@\\
+\mbox{}\verb@                theta=theta, bPrime=bPrime, bPrime2=bPrime2, fTilt=fTilt, weights=weights)@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    if (returnfTiltMatrix)@\\
+\mbox{}\verb@        fit$fTiltMatrix <- t(th$fTilt)@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    if (returnf0ScoreInfo) {@\\
+\mbox{}\verb@        fit$score.logf0 <- ff$score.log@\\
+\mbox{}\verb@        fit$info.logf0 <- ff$info.log@\\
+\mbox{}\verb@    }@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    class(fit) <- "gldrm"@\\
+\mbox{}\verb@    fit@\\
+\mbox{}\verb@}@\\
+\mbox{}\verb@@{\NWsep}
+\end{list}
+\vspace{-1.5ex}
+\footnotesize
+\begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
+\item \NWtxtFileDefBy\ \NWlink{nuweb?}{?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}.
+
+\item{}
+\end{list}
+\vspace{4ex}
+\end{flushleft}
+\begin{flushleft} \small\label{scrap2}\raggedright\small
+\NWtarget{nuweb?}{} \verb@"R/wgldrm.R"@\nobreak\ {\footnotesize {?}}$\equiv$
+\vspace{-1ex}
+\begin{list}{}{} \item
+\mbox{}\verb@@\\
+\mbox{}\verb@#' Beta optimization routing@\\
+\mbox{}\verb@#'@\\
+\mbox{}\verb@#' @{\tt @}\verb@param x Covariate matrix.@\\
+\mbox{}\verb@#' @{\tt @}\verb@param y Response vector.@\\
+\mbox{}\verb@#' @{\tt @}\verb@param spt Vector of unique observed support points in the response.@\\
+\mbox{}\verb@#' @{\tt @}\verb@param ySptIndex Index of each \code{y} value within the \code{spt} vector.@\\
+\mbox{}\verb@#' @{\tt @}\verb@param f0 Current values of f0.@\\
+\mbox{}\verb@#' @{\tt @}\verb@param linkinv Inverse link function.@\\
+\mbox{}\verb@#' @{\tt @}\verb@param mu.eta Deriviative of inverse link function.@\\
+\mbox{}\verb@#' @{\tt @}\verb@param offset Vector of known offset values to be added to the linear@\\
+\mbox{}\verb@#' combination (x' beta) for each observation. Mostly intended for likelihood ratio@\\
+\mbox{}\verb@#' and score confidence intervals.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param sampprobs Optional matrix of sampling probabilities.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param betaStart Starting values for beta (typically the estimates from the@\\
+\mbox{}\verb@#' previous iteration).@\\
+\mbox{}\verb@#'@{\tt @}\verb@param thStart Starting theta values. Needs to be a list of values matching@\\
+\mbox{}\verb@#' the output of the \code{getTheta} function.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param thetaConrol A "thetaControl" object returned from the \code{theta.control}@\\
+\mbox{}\verb@#' function.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param betaControl A "betaControl" object returned from the \code{beta.control}@\\
+\mbox{}\verb@#' function.@\\
+\mbox{}\verb@#'@\\
+\mbox{}\verb@#' @{\tt @}\verb@return A list containing the following:@\\
+\mbox{}\verb@#' \itemize{@\\
+\mbox{}\verb@#' \item \code{beta} Updated values.@\\
+\mbox{}\verb@#' \item \code{mu} Updated mean for each observation.@\\
+\mbox{}\verb@#' \item \code{th} Updated list returned from the \code{getTheta} function.@\\
+\mbox{}\verb@#' \item \code{llik} Updated log-likelihood.@\\
+\mbox{}\verb@#' \item \code{iter} Number of iterations until convergence. (Will always be@\\
+\mbox{}\verb@#' one unless \code{maxiter} is increased to something greater than one using the@\\
+\mbox{}\verb@#' \code{betaControl} argument.)@\\
+\mbox{}\verb@#' \item \code{conv} Convergence indicator. (Will always be FALSE unless@\\
+\mbox{}\verb@#' \code{maxiter} is increased to something greater than one using the@\\
+\mbox{}\verb@#' \code{betaControl} argument.)@\\
+\mbox{}\verb@#' }@\\
+\mbox{}\verb@#'@\\
+\mbox{}\verb@#' @{\tt @}\verb@keywords internal@\\
+\mbox{}\verb@beta.control <- function (eps = 1e-10, maxiter = 1, maxhalf = 10) @\\
+\mbox{}\verb@{@\\
+\mbox{}\verb@    betaControl <- as.list(environment())@\\
+\mbox{}\verb@    class(betaControl) <- "betaControl"@\\
+\mbox{}\verb@    betaControl@\\
+\mbox{}\verb@}@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@getBeta <- function(x, y, spt, ySptIndex, f0, linkinv, mu.eta, offset, weights,@\\
+\mbox{}\verb@                    betaStart, thStart,@\\
+\mbox{}\verb@                    thetaControl=theta.control(), betaControl=beta.control())@\\
+\mbox{}\verb@{@\\
+\mbox{}\verb@    ## Extract control arguments@\\
+\mbox{}\verb@    if (class(betaControl) != "betaControl")@\\
+\mbox{}\verb@      stop("betaControl must be an object of class betaControl returned by betaControl() function.")@\\
+\mbox{}\verb@    eps <- betaControl$eps@\\
+\mbox{}\verb@    maxiter <- betaControl$maxiter@\\
+\mbox{}\verb@    maxhalf <- betaControl$maxhalf@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    sptMin <- min(spt)@\\
+\mbox{}\verb@    sptMax <- max(spt)@\\
+\mbox{}\verb@    beta <- betaStart@\\
+\mbox{}\verb@    th <- thStart@\\
+\mbox{}\verb@    llik <- th$llik@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    conv <- FALSE@\\
+\mbox{}\verb@    maxhalfreached <- FALSE@\\
+\mbox{}\verb@    iter <- 0@\\
+\mbox{}\verb@    while (!conv && !maxhalfreached && iter < maxiter)@\\
+\mbox{}\verb@    {@\\
+\mbox{}\verb@        iter <- iter+1@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@        ## Update mean vector and related quantities@\\
+\mbox{}\verb@        eta <- c(x %*% beta + offset)@\\
+\mbox{}\verb@        mu <- linkinv(eta)@\\
+\mbox{}\verb@        dmudeta <- mu.eta(eta)@\\
+\mbox{}\verb@        betaold <- beta@\\
+\mbox{}\verb@        muold <- mu@\\
+\mbox{}\verb@        thold <- th@\\
+\mbox{}\verb@        llikold <- llik@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@        ## Compute weighted least squares update@\\
+\mbox{}\verb@        w <- weights * dmudeta^2 / th$bPrime2@\\
+\mbox{}\verb@        ymm <- y - mu@\\
+\mbox{}\verb@        r <-  ymm / dmudeta@\\
+\mbox{}\verb@        @\\
+\mbox{}\verb@        yeqmu <- which(abs(ymm) < 1e-15)@\\
+\mbox{}\verb@        w[yeqmu] <- 0  # prevent 0/0@\\
+\mbox{}\verb@        r[yeqmu] <- 0  # prevent 0/0@\\
+\mbox{}\verb@        @\\
+\mbox{}\verb@        if (any(w==Inf)) break@\\
+\mbox{}\verb@        @\\
+\mbox{}\verb@        betastep <- unname(coef(lm.wfit(x, r, w)))@\\
+\mbox{}\verb@        betastep[is.na(betastep)] <- 0@\\
+\mbox{}\verb@        @\\
+\mbox{}\verb@        ## Let q = b''*(theta) / b''(theta)@\\
+\mbox{}\verb@        ## W = diag{dmudeta^2 / b''(theta) * q}@\\
+\mbox{}\verb@        ## r = (y - b'*(theta)) / (q * dmudeta)@\\
+\mbox{}\verb@        ## We need to solve for beta such that I(betaHat) %*% beta = Score(betaHat),@\\
+\mbox{}\verb@        ## or equivalently, X'WX = X'Wr, or equivalently W^{1/2}X = W^{1/2}r.@\\
+\mbox{}\verb@        ## The linear system can be solved using qr.coef().@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@        ### Update beta and take half steps if log-likelihood does not improve@\\
+\mbox{}\verb@        beta <- beta + betastep@\\
+\mbox{}\verb@        eta <- c(x %*% beta + offset)@\\
+\mbox{}\verb@        mu <- linkinv(eta)@\\
+\mbox{}\verb@        if (min(mu)<sptMin || max(mu)>sptMax) {@\\
+\mbox{}\verb@            llik <- -Inf@\\
+\mbox{}\verb@        } else {@\\
+\mbox{}\verb@            th <- getTheta(spt=spt, f0=f0, mu=mu, weights=weights, ySptIndex=ySptIndex,@\\
+\mbox{}\verb@                           thetaStart=thold$theta, thetaControl=thetaControl)@\\
+\mbox{}\verb@            llik <- th$llik@\\
+\mbox{}\verb@        }@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@        nhalf <- 0@\\
+\mbox{}\verb@        while ((llik<llikold) && (nhalf<maxhalf)) {@\\
+\mbox{}\verb@            nhalf <- nhalf + 1@\\
+\mbox{}\verb@            beta <- (beta + betaold) / 2@\\
+\mbox{}\verb@            eta <- c(x %*% beta + offset)@\\
+\mbox{}\verb@            mu <- linkinv(eta)@\\
+\mbox{}\verb@            if (min(mu)<sptMin || max(mu)>sptMax) {@\\
+\mbox{}\verb@                llik <- -Inf@\\
+\mbox{}\verb@            } else {@\\
+\mbox{}\verb@                th <- getTheta(spt=spt, f0=f0, mu=mu, weights=weights, ySptIndex=ySptIndex,@\\
+\mbox{}\verb@                               thetaStart=thold$theta, thetaControl=thetaControl)@\\
+\mbox{}\verb@                llik <- th$llik@\\
+\mbox{}\verb@            }@\\
+\mbox{}\verb@        }@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@        if (llik < llikold) {@\\
+\mbox{}\verb@            beta <- betaold@\\
+\mbox{}\verb@            mu <- muold@\\
+\mbox{}\verb@            th <- thold@\\
+\mbox{}\verb@            llik <- llikold@\\
+\mbox{}\verb@            conv <- FALSE@\\
+\mbox{}\verb@            maxhalfreached <- TRUE@\\
+\mbox{}\verb@        } else {@\\
+\mbox{}\verb@            del <- (llik - llikold) / llik@\\
+\mbox{}\verb@            if (llik == 0) del <- 0  # consider converged if model fit is perfect@\\
+\mbox{}\verb@            conv <- del < eps@\\
+\mbox{}\verb@        }@\\
+\mbox{}\verb@    }@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    return(list(beta=beta, mu=mu, th=th, llik=llik, iter=iter, conv=conv))@\\
+\mbox{}\verb@}@\\
+\mbox{}\verb@@{\NWsep}
+\end{list}
+\vspace{-1.5ex}
+\footnotesize
+\begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
+\item \NWtxtFileDefBy\ \NWlink{nuweb?}{?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}.
+
+\item{}
+\end{list}
+\vspace{4ex}
+\end{flushleft}
+\begin{flushleft} \small\label{scrap3}\raggedright\small
+\NWtarget{nuweb?}{} \verb@"R/wgldrm.R"@\nobreak\ {\footnotesize {?}}$\equiv$
+\vspace{-1ex}
+\begin{list}{}{} \item
+\mbox{}\verb@@\\
+\mbox{}\verb@## Computes log(sum(exp(x))) with better precision@\\
+\mbox{}\verb@logSumExp <- function(x)@\\
+\mbox{}\verb@{@\\
+\mbox{}\verb@    i <- which.max(x)@\\
+\mbox{}\verb@    m <- x[i]@\\
+\mbox{}\verb@    lse <- log1p(sum(exp(x[-i]-m))) + m@\\
+\mbox{}\verb@    lse@\\
+\mbox{}\verb@}@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@## g function (logit transformation from appendix)@\\
+\mbox{}\verb@g <- function(mu, m, M) log(mu-m) - log(M-mu)@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@#' Control arguments for \eqn{\theta} update algorithm@\\
+\mbox{}\verb@#'@\\
+\mbox{}\verb@#' This function returns control arguments for the \eqn{\theta} update algorithm.@\\
+\mbox{}\verb@#' Each argument has a default value, which will be used unless a different@\\
+\mbox{}\verb@#' value is provided by the user.@\\
+\mbox{}\verb@#'@\\
+\mbox{}\verb@#'@{\tt @}\verb@param eps Convergence threshold for theta updates. Convergence is@\\
+\mbox{}\verb@#' evaluated separately for each observation. An observation has converged when@\\
+\mbox{}\verb@#' the difference between \eqn{b'(\theta)} and \eqn{\mu} is less than \code{epsTheta}.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param maxiter Maximum number of iterations.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param maxhalf Maximum number of half steps allowed per iteration if the@\\
+\mbox{}\verb@#' convergence criterion does not improve.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param maxtheta Absolute value of theta is not allowed to exceed \code{maxtheta}.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param logit Logical for whether logit transformation should be used. Use of@\\
+\mbox{}\verb@#' this stabilizing transformation appears to be faster in general. Default is TRUE.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param logsumexp Logical argument for whether log-sum-exp trick should be used.@\\
+\mbox{}\verb@#' This may improve numerical stability at the expense of computational time.@\\
+\mbox{}\verb@#'@\\
+\mbox{}\verb@#' @{\tt @}\verb@return Object of S3 class "thetaControl", which is a list of control arguments.@\\
+\mbox{}\verb@#'@\\
+\mbox{}\verb@#' @{\tt @}\verb@export@\\
+\mbox{}\verb@theta.control <- function(eps=1e-10, maxiter=100, maxhalf=20, maxtheta=500,@\\
+\mbox{}\verb@                          logit=TRUE, logsumexp=FALSE)@\\
+\mbox{}\verb@{@\\
+\mbox{}\verb@    thetaControl <- as.list(environment())@\\
+\mbox{}\verb@    class(thetaControl) <- "thetaControl"@\\
+\mbox{}\verb@    thetaControl@\\
+\mbox{}\verb@}@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@#' getTheta@\\
+\mbox{}\verb@#' Updates theta. Vectorized but only updates observations that have not converged.@\\
+\mbox{}\verb@#'@\\
+\mbox{}\verb@#'@{\tt @}\verb@param spt Support of the observed response variable. (This is the set of@\\
+\mbox{}\verb@#' unique values observed, not the set of all possible values.)@\\
+\mbox{}\verb@#'@{\tt @}\verb@param f0 Values of the baseline distribution corresponding to the values of spt@\\
+\mbox{}\verb@#'@{\tt @}\verb@param mu The fitted mean for each observation. Note these values must lie@\\
+\mbox{}\verb@#' strictly within the range of the support.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param sampprobs Matrix of sampling probabilities. The number of rows should@\\
+\mbox{}\verb@#' equal the number of observations, and the number of columns should equal@\\
+\mbox{}\verb@#' the number of unique observed support points.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param ySptIndex Vector containing index of each obervation's response value@\\
+\mbox{}\verb@#' within the \code{spt} vector. This is only needed to calculate the log-likelihood@\\
+\mbox{}\verb@#' after each update.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param thetaStart Vector of starting values. One value per observation. If@\\
+\mbox{}\verb@#' \code{NULL}, zero is used as the starting value for each observation.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param thetaControl Object of class \code{thetaControl}, which is a list of@\\
+\mbox{}\verb@#' control arguments returned by the \code{thetaControl} function.@\\
+\mbox{}\verb@#'@\\
+\mbox{}\verb@#' @{\tt @}\verb@return List containing the following:@\\
+\mbox{}\verb@#' \itemize{@\\
+\mbox{}\verb@#' \item \code{theta} Updated values.@\\
+\mbox{}\verb@#' \item \code{fTilt} Matrix containing the exponentially tilted distribution for each@\\
+\mbox{}\verb@#' observation, i.e. f(y|X=x). Each column corresponds to an observation and sums to one.@\\
+\mbox{}\verb@#' \item \code{bPrime} Vector containing the mean of the exponentially tilted distribution@\\
+\mbox{}\verb@#' for each observation. Should match \code{mu} argument very closely.@\\
+\mbox{}\verb@#' \item \code{bPrime2} Vector containing the variance of the exponentially tilted@\\
+\mbox{}\verb@#' distribution for each observation.@\\
+\mbox{}\verb@#' \item \code{fTiltSW} Matrix containing the exponentially tilted distribution for each@\\
+\mbox{}\verb@#' observation, conditional on that observation being sampled, i.e. f(y|X=x, S=1).@\\
+\mbox{}\verb@#' If \code{sampprobs=NULL}, then \code{fTiltSW} matches \code{fTilt}.@\\
+\mbox{}\verb@#' \item \code{bPrimeSW} Vector containing the mean for each observation, conditional@\\
+\mbox{}\verb@#' on that observation being sampled. If \code{sampprobs=NULL}, then \code{bPrimeSW}@\\
+\mbox{}\verb@#' matches \code{bPrime}.@\\
+\mbox{}\verb@#' \item \code{bPrime2SW} Vector containing the variance for each observation, conditional@\\
+\mbox{}\verb@#' on that observation being sampled. If \code{sampprobs=NULL}, then \code{bPrime2SW}@\\
+\mbox{}\verb@#' matches \code{bPrime2}.@\\
+\mbox{}\verb@#' \item \code{llik} Semiparametric log-likelihood, evaluated at the current beta@\\
+\mbox{}\verb@#' and f0 values. If sampling weights are used, then the log-likelihood is conditional@\\
+\mbox{}\verb@#' on each observation being sampled.@\\
+\mbox{}\verb@#' \item \code{conv} Convergence indicator.@\\
+\mbox{}\verb@#' \item \code{iter} Number of iterations until convergence was reached.@\\
+\mbox{}\verb@#' }@\\
+\mbox{}\verb@#'@\\
+\mbox{}\verb@#' @{\tt @}\verb@keywords internal@\\
+\mbox{}\verb@getTheta <- function(spt, f0, mu, weights, ySptIndex, thetaStart=NULL, thetaControl=theta.control())@\\
+\mbox{}\verb@{@\\
+\mbox{}\verb@    ## Extract control arguments@\\
+\mbox{}\verb@    if (class(thetaControl) != "thetaControl")@\\
+\mbox{}\verb@        stop("thetaControl must be an object of class \'thetaControl\' returned by@\\
+\mbox{}\verb@             thetaControl() function.")@\\
+\mbox{}\verb@    logit <- thetaControl$logit@\\
+\mbox{}\verb@    eps <- thetaControl$eps@\\
+\mbox{}\verb@    maxiter <- thetaControl$maxiter@\\
+\mbox{}\verb@    maxhalf <- thetaControl$maxhalf@\\
+\mbox{}\verb@    maxtheta <- thetaControl$maxtheta@\\
+\mbox{}\verb@    logsumexp <- thetaControl$logsumexp@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    ## Define value from inputs@\\
+\mbox{}\verb@    sptN <- length(spt)@\\
+\mbox{}\verb@    m <- min(spt)@\\
+\mbox{}\verb@    M <- max(spt)@\\
+\mbox{}\verb@    n <- length(mu)@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    ## Format arguments@\\
+\mbox{}\verb@    spt <- as.vector(spt)@\\
+\mbox{}\verb@    f0 <- as.vector(f0)@\\
+\mbox{}\verb@    mu <- as.vector(mu)@\\
+\mbox{}\verb@    if (!is.null(thetaStart)) {@\\
+\mbox{}\verb@        thetaStart <- as.vector(thetaStart)@\\
+\mbox{}\verb@    } else {@\\
+\mbox{}\verb@        thetaStart <- rep(0, n)@\\
+\mbox{}\verb@    }@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    ## Argument checks@\\
+\mbox{}\verb@    if (length(f0) != sptN)@\\
+\mbox{}\verb@        stop("spt and f0 must be vectors of equal length.")@\\
+\mbox{}\verb@    if (any(f0 < 0))@\\
+\mbox{}\verb@        stop("f0 values cannot be negative.")@\\
+\mbox{}\verb@    if (min(mu)<m || max(mu)>M)@\\
+\mbox{}\verb@        stop("mu starting values must lie within the range of spt.")@\\
+\mbox{}\verb@    if (length(thetaStart) != n)@\\
+\mbox{}\verb@        stop("thetaStart must be a vector with length equal length(mu)")@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    ## Value does not change@\\
+\mbox{}\verb@    gMu <- g(mu, m, M)@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    ## Initialize values@\\
+\mbox{}\verb@    theta <- thetaStart  # initial values required@\\
+\mbox{}\verb@    thetaOld <- bPrimeErrOld <- rep(NA, n)@\\
+\mbox{}\verb@    conv <- rep(FALSE, n)@\\
+\mbox{}\verb@    maxedOut <- rep(FALSE, n)@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    if (logsumexp) {@\\
+\mbox{}\verb@        logf0 <- log(f0)@\\
+\mbox{}\verb@        logfUnstd <- logf0 + tcrossprod(spt, theta)@\\
+\mbox{}\verb@        logb <- apply(logfUnstd, 2, logSumExp)@\\
+\mbox{}\verb@        fTilt <- exp(logfUnstd - rep(logb, each=sptN))@\\
+\mbox{}\verb@        normfact <- colSums(fTilt)@\\
+\mbox{}\verb@        normss <- which(normfact != 1)@\\
+\mbox{}\verb@        fTilt[, normss] <- fTilt[, normss, drop=FALSE] / rep(normfact[normss], each=sptN)@\\
+\mbox{}\verb@    } else {@\\
+\mbox{}\verb@        fUnstd <- f0 * exp(tcrossprod(spt, theta))  # |spt| x n matrix of tilted f0 values@\\
+\mbox{}\verb@        b <- colSums(fUnstd)@\\
+\mbox{}\verb@        fTilt <- fUnstd / rep(b, each=sptN)  # normalized@\\
+\mbox{}\verb@    }@\\
+\mbox{}\verb@    bPrime <- colSums(spt*fTilt)  # mean as a function of theta@\\
+\mbox{}\verb@    bPrime2 <- colSums(outer(spt, bPrime, "-")^2 * fTilt)  # variance as a function of theta@\\
+\mbox{}\verb@    bPrimeErr <- bPrime - mu  # used to assess convergence@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    ## Update theta until convergence@\\
+\mbox{}\verb@    conv <- (abs(bPrimeErr) < eps) |@\\
+\mbox{}\verb@        (theta==maxtheta & bPrimeErr<0) |@\\
+\mbox{}\verb@        (theta==-maxtheta & bPrimeErr>0)@\\
+\mbox{}\verb@    s <- which(!conv)@\\
+\mbox{}\verb@    iter <- 0@\\
+\mbox{}\verb@    while(length(s)>0 && iter<maxiter) {@\\
+\mbox{}\verb@        iter <- iter + 1@\\
+\mbox{}\verb@        bPrimeErrOld[s] <- bPrimeErr[s]  # used to assess convergence@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@        ## 1) Update theta@\\
+\mbox{}\verb@        thetaOld[s] <- theta[s]@\\
+\mbox{}\verb@        if (logit) {@\\
+\mbox{}\verb@            tPrimeS <- (M-m) / ((bPrime[s]-m) * (M-bPrime[s])) * bPrime2[s]@\\
+\mbox{}\verb@                # t'(theta) from paper: temporary variable@\\
+\mbox{}\verb@                # only needed for the subset of observations that have not converged@\\
+\mbox{}\verb@            tPrimeS[is.na(tPrimeS) | tPrimeS==Inf] <- 0@\\
+\mbox{}\verb@                # If bPrime is on the boundary, then bPrime2 should be zero.@\\
+\mbox{}\verb@                # Exceptions are due to rounding error.@\\
+\mbox{}\verb@            thetaS <- theta[s] - (g(bPrime[s], m, M) - gMu[s]) / tPrimeS@\\
+\mbox{}\verb@        } else {@\\
+\mbox{}\verb@            thetaS <- theta[s] - bPrimeErr[s] / bPrime2[s]@\\
+\mbox{}\verb@        }@\\
+\mbox{}\verb@        thetaS[thetaS > maxtheta] <- maxtheta@\\
+\mbox{}\verb@        thetaS[thetaS < -maxtheta] <- -maxtheta@\\
+\mbox{}\verb@        theta[s] <- thetaS@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@        ## 2) Update fTilt, bPrime, and bPrime2 and take half steps if bPrimeErr not improved@\\
+\mbox{}\verb@        ss <- s@\\
+\mbox{}\verb@        nhalf <- 0@\\
+\mbox{}\verb@        while(length(ss)>0 && nhalf<maxhalf) {@\\
+\mbox{}\verb@            ## 2a) Update fTilt, bPrime, and bPrime2@\\
+\mbox{}\verb@            if (logsumexp) {@\\
+\mbox{}\verb@                logfUnstd[, ss] <- logf0 + tcrossprod(spt, theta[ss])@\\
+\mbox{}\verb@                logb[ss] <- apply(logfUnstd[, ss, drop=FALSE], 2, logSumExp)@\\
+\mbox{}\verb@                fTilt[, ss] <- exp(logfUnstd[, ss, drop=FALSE] - rep(logb[ss], each=sptN))@\\
+\mbox{}\verb@                normfact <- colSums(fTilt[, ss, drop=FALSE])@\\
+\mbox{}\verb@                normss <- which(normfact != 1)@\\
+\mbox{}\verb@                fTilt[, ss[normss]] <- fTilt[, ss[normss], drop=FALSE] / rep(normfact[normss], each=sptN)@\\
+\mbox{}\verb@            } else {@\\
+\mbox{}\verb@                fUnstd[, ss] <- f0*exp(tcrossprod(spt, theta[ss]))  # |spt| x n matrix of tilted f0 values@\\
+\mbox{}\verb@                b[ss] <- colSums(fUnstd[, ss, drop=FALSE])@\\
+\mbox{}\verb@                fTilt[, ss] <- fUnstd[, ss, drop=FALSE] / rep(b[ss], each=sptN)  # normalized@\\
+\mbox{}\verb@            }@\\
+\mbox{}\verb@            bPrime[ss] <- colSums(spt*fTilt[, ss, drop=FALSE])  # mean as a function of theta@\\
+\mbox{}\verb@            bPrime2[ss] <- colSums(outer(spt, bPrime[ss], "-")^2 * fTilt[, ss, drop=FALSE])  # variance as a function of theta@\\
+\mbox{}\verb@            bPrimeErr[ss] <- bPrime[ss] - mu[ss]  # used to assess convergence@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@            ## 2b) Take half steps if necessary@\\
+\mbox{}\verb@            ss <- ss[abs(bPrimeErr[ss]) > abs(bPrimeErrOld[ss])]@\\
+\mbox{}\verb@            if (length(ss) > 0) nhalf <- nhalf + 1@\\
+\mbox{}\verb@            theta[ss] <- (theta[ss] + thetaOld[ss]) / 2@\\
+\mbox{}\verb@        }@\\
+\mbox{}\verb@        ## If maximum half steps are exceeded, set theta to previous value@\\
+\mbox{}\verb@        maxedOut[ss] <- TRUE@\\
+\mbox{}\verb@        theta[ss] <- thetaOld[ss]@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@        ## 3) Check convergence@\\
+\mbox{}\verb@        conv[s] <- (abs(bPrimeErr[s]) < eps) |@\\
+\mbox{}\verb@            (theta[s]==maxtheta & bPrimeErr[s]<0) |@\\
+\mbox{}\verb@            (theta[s]==-maxtheta & bPrimeErr[s]>0)@\\
+\mbox{}\verb@        s <- s[!conv[s] & !maxedOut[s]]@\\
+\mbox{}\verb@    }@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    fTiltSW <- fTilt@\\
+\mbox{}\verb@    bPrimeSW <- bPrime@\\
+\mbox{}\verb@    bPrime2SW <- bPrime2@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    ## Calculate log-likelihood@\\
+\mbox{}\verb@   # llik <- sum(log(fTiltSW[cbind(ySptIndex, seq_along(ySptIndex))]))@\\
+\mbox{}\verb@    fTiltSW.extracted <- fTiltSW[cbind(ySptIndex, seq_along(ySptIndex))]@\\
+\mbox{}\verb@    llik <- sum(weights[fTiltSW.extracted>0] * log(fTiltSW.extracted[fTiltSW.extracted>0]))@\\
+\mbox{}\verb@ @\\
+\mbox{}\verb@    list(theta=theta, fTilt=fTilt, bPrime=bPrime, bPrime2=bPrime2,@\\
+\mbox{}\verb@         fTiltSW=fTiltSW, bPrimeSW=bPrimeSW, bPrime2SW=bPrime2SW,@\\
+\mbox{}\verb@         llik=llik, conv=conv, iter=iter)@\\
+\mbox{}\verb@}@\\
+\mbox{}\verb@@{\NWsep}
+\end{list}
+\vspace{-1.5ex}
+\footnotesize
+\begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
+\item \NWtxtFileDefBy\ \NWlink{nuweb?}{?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}.
+
+\item{}
+\end{list}
+\vspace{4ex}
+\end{flushleft}
+\begin{flushleft} \small\label{scrap4}\raggedright\small
+\NWtarget{nuweb?}{} \verb@"R/wgldrm.R"@\nobreak\ {\footnotesize {?}}$\equiv$
+\vspace{-1ex}
+\begin{list}{}{} \item
+\mbox{}\verb@@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@#' Control arguments for f0 update algorithm@\\
+\mbox{}\verb@#'@\\
+\mbox{}\verb@#' This function returns control arguments for the \eqn{f_0} update algorithm.@\\
+\mbox{}\verb@#' Each argument has a default value, which will be used unless a different@\\
+\mbox{}\verb@#' value is provided by the user.@\\
+\mbox{}\verb@#'@\\
+\mbox{}\verb@#'@{\tt @}\verb@param eps Convergence threshold. The update has converged when the relative@\\
+\mbox{}\verb@#' change in log-likelihood between iterations is less than \code{eps}.@\\
+\mbox{}\verb@#' absolute change is less than \code{thesh}.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param maxiter Maximum number of iterations allowed.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param maxhalf Maximum number of half steps allowed per iteration if@\\
+\mbox{}\verb@#' log-likelihood does not improve between iterations.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param maxlogstep Maximum optimization step size allowed on the@\\
+\mbox{}\verb@#' \code{log(f0)} scale.@\\
+\mbox{}\verb@#'@\\
+\mbox{}\verb@#' @{\tt @}\verb@return Object of S3 class "f0Control", which is a list of control arguments.@\\
+\mbox{}\verb@#'@\\
+\mbox{}\verb@#' @{\tt @}\verb@export@\\
+\mbox{}\verb@f0.control <- function(eps=1e-10, maxiter=1000, maxhalf=20, maxlogstep=2)@\\
+\mbox{}\verb@{@\\
+\mbox{}\verb@    f0Control <- as.list(environment())@\\
+\mbox{}\verb@    class(f0Control) <- "f0Control"@\\
+\mbox{}\verb@    f0Control@\\
+\mbox{}\verb@}@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@#' f0 optimization routine@\\
+\mbox{}\verb@#'@\\
+\mbox{}\verb@#'@{\tt @}\verb@param y Vector of response values.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param spt Vector of unique observed support points in the response.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param ySptIndex Index of each \code{y} value within \code{spt}.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param sptFreq Vector containing frequency of each \code{spt} value.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param sampprobs Optional matrix of sampling probabilities.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param mu Fitted mean for each observation. Only used if \code{sampprobs=NULL}.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param mu0 Mean constraing for f0.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param f0Start Starting f0 values. (Typically the estimate from the previous@\\
+\mbox{}\verb@#' iteration.)@\\
+\mbox{}\verb@#'@{\tt @}\verb@param thStart Starting theta values. Needs to be a list of values matching@\\
+\mbox{}\verb@#' the output of the \code{getTheta} function.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param thetaControl A "thetaControl" object returned from the \code{theta.control}@\\
+\mbox{}\verb@#' function.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param f0Control An "f0Control" object returned from the \code{f0.control}@\\
+\mbox{}\verb@#' function.@\\
+\mbox{}\verb@#' trace Logical. If TRUE, then progress is printed to terminal at each iteration.@\\
+\mbox{}\verb@#'@\\
+\mbox{}\verb@#' @{\tt @}\verb@return A list containing the following:@\\
+\mbox{}\verb@#' \itemize{@\\
+\mbox{}\verb@#' \item \code{f0} Updated values.@\\
+\mbox{}\verb@#' \item \code{llik} Updated log-likelihood.@\\
+\mbox{}\verb@#' \item \code{th} Updated list returned from the \code{getTheta} function.@\\
+\mbox{}\verb@#' \item \code{conv} Convergence indicator.@\\
+\mbox{}\verb@#' \item \code{iter} Number of iterations until convergence.@\\
+\mbox{}\verb@#' \item \code{nhalf} The number of half steps taken on the last iteration if the@\\
+\mbox{}\verb@#' initial BFGS update did not improve the log-likelihood.@\\
+\mbox{}\verb@#' \item \code{score.log} Score function with respect to log(f0) at convergence.@\\
+\mbox{}\verb@#' \item \code{info.log} Information matrix with respect to log(f0) at convergence.@\\
+\mbox{}\verb@#' }@\\
+\mbox{}\verb@#'@\\
+\mbox{}\verb@#' @{\tt @}\verb@keywords internal@\\
+\mbox{}\verb@getf0 <- function(y, spt, ySptIndex, sptFreq, weights, sptFreq.weighted, mu, mu0, f0Start, thStart,@\\
+\mbox{}\verb@                  thetaControl=theta.control(), f0Control=f0.control(), trace=FALSE)@\\
+\mbox{}\verb@{@\\
+\mbox{}\verb@    ## Extract theta control arguments@\\
+\mbox{}\verb@    if (class(f0Control) != "f0Control")@\\
+\mbox{}\verb@        stop("f0Control must be an object of class f0Control returned by f0Control() function.")@\\
+\mbox{}\verb@    eps <- f0Control$eps@\\
+\mbox{}\verb@    maxiter <- f0Control$maxiter@\\
+\mbox{}\verb@    maxhalf <- f0Control$maxhalf@\\
+\mbox{}\verb@    maxlogstep <- f0Control$maxlogstep@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    f0 <- f0Start  # assumes sum(f0Start) = 1 and sum(f0Start * spt) = mu0@\\
+\mbox{}\verb@    th <- thStart@\\
+\mbox{}\verb@    llik <- th$llik@\\
+\mbox{}\verb@    score.log <- NULL@\\
+\mbox{}\verb@    smm <- outer(spt, mu, "-")@\\
+\mbox{}\verb@    ymm <- y - mu@\\
+\mbox{}\verb@    yeqmu <- which(abs(ymm) < 1e-15)@\\
+\mbox{}\verb@    @\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    conv <- FALSE@\\
+\mbox{}\verb@    iter <- 0@\\
+\mbox{}\verb@    while (!conv && iter<maxiter) {@\\
+\mbox{}\verb@        iter <- iter + 1@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@        # Score calculation@\\
+\mbox{}\verb@        score.logOld <- score.log@\\
+\mbox{}\verb@        @\\
+\mbox{}\verb@        fTiltSWSums <- rowSums(th$fTiltSW)@\\
+\mbox{}\verb@        fTiltSWSumsWeighted <- apply(th$fTiltSW, MARGIN=1, function(x) sum(weights * x)) @\\
+\mbox{}\verb@        smmfTiltSW <- smm * th$fTiltSW@\\
+\mbox{}\verb@        ystd <- ymm / th$bPrime2SW@\\
+\mbox{}\verb@        ystdWeighted <- weights * ystd@\\
+\mbox{}\verb@        ystd[yeqmu] <- 0  # prevent 0/0@\\
+\mbox{}\verb@        ystdWeighted[yeqmu] <- 0  # prevent 0/0@\\
+\mbox{}\verb@    @\\
+\mbox{}\verb@@\\
+\mbox{}\verb@        score.logT1 <- sptFreq.weighted@\\
+\mbox{}\verb@        score.logT2 <- fTiltSWSumsWeighted@\\
+\mbox{}\verb@        score.logT3 <- c(smmfTiltSW %*% ystdWeighted)@\\
+\mbox{}\verb@        score.log <- score.logT1 - score.logT2 - score.logT3@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@        # Inverse info, score step, and f0 step are on the log scale (score is not)@\\
+\mbox{}\verb@        if (iter == 1) {@\\
+\mbox{}\verb@            d1 <- min(fTiltSWSumsWeighted)  # max inverse diagonal of first information term, on log scale@\\
+\mbox{}\verb@            d2 <- max(abs(score.log)) / maxlogstep@\\
+\mbox{}\verb@            d <- max(d1, d2)@\\
+\mbox{}\verb@            infoinvBFGS.log <- diag(1/d, nrow=length(f0))@\\
+\mbox{}\verb@        } else {@\\
+\mbox{}\verb@            scorestep.log <- score.log - score.logOld@\\
+\mbox{}\verb@           # f0step.log <- log(f0) - log(f0old)@\\
+\mbox{}\verb@            # to prevent the 0/0 situation @\\
+\mbox{}\verb@            ratiof0f0old <- f0 / f0old@\\
+\mbox{}\verb@            ratiof0f0old[is.na(ratiof0f0old)] <- 1@\\
+\mbox{}\verb@            f0step.log <- log(ratiof0f0old)@\\
+\mbox{}\verb@            @\\
+\mbox{}\verb@            sy <- sum(f0step.log * scorestep.log)@\\
+\mbox{}\verb@            yiy <- c(crossprod(scorestep.log, infoinvBFGS.log %*% scorestep.log))@\\
+\mbox{}\verb@            iys <- tcrossprod(infoinvBFGS.log %*% scorestep.log, f0step.log)@\\
+\mbox{}\verb@            infoinvBFGS.log <- infoinvBFGS.log + ((yiy - sy) / sy^2) * tcrossprod(f0step.log) - (1 / sy) * (iys + t(iys))@\\
+\mbox{}\verb@        }@\\
+\mbox{}\verb@        logstep <- c(infoinvBFGS.log %*% score.log)@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@        # Cap log(f0) step size@\\
+\mbox{}\verb@        logstep.max <- max(abs(logstep))@\\
+\mbox{}\verb@        if (logstep.max > maxlogstep)@\\
+\mbox{}\verb@            logstep <- logstep * (maxlogstep / logstep.max)@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@        # Save values from previous iteration@\\
+\mbox{}\verb@        f0old <- f0@\\
+\mbox{}\verb@        thold <- th@\\
+\mbox{}\verb@        llikold <- llik@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@        # Take update step@\\
+\mbox{}\verb@        f0 <- exp(log(f0) + logstep)@\\
+\mbox{}\verb@        # Scale and tilt f0@\\
+\mbox{}\verb@        f0 <- f0 / sum(f0)@\\
+\mbox{}\verb@        f0 <- getTheta(spt=spt, f0=f0, mu=mu0, weights=weights, ySptIndex=1,@\\
+\mbox{}\verb@                       thetaStart=0, thetaControl=thetaControl)$fTilt[, 1]@\\
+\mbox{}\verb@        # Update theta and likelihood@\\
+\mbox{}\verb@        thold <- th@\\
+\mbox{}\verb@        llikold <- llik@\\
+\mbox{}\verb@        th <- getTheta(spt=spt, f0=f0, mu=mu, weights=weights, ySptIndex=ySptIndex,@\\
+\mbox{}\verb@                       thetaStart=th$theta, thetaControl=thetaControl)@\\
+\mbox{}\verb@        llik <- th$llik@\\
+\mbox{}\verb@        conv <- abs((llik - llikold) / (llik + 1e-100)) < eps@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@        # If log-likelihood does not improve, change step direction to be along gradient@\\
+\mbox{}\verb@        # Take half steps until likelihood improves@\\
+\mbox{}\verb@        # Continue taking half steps until log likelihood no longer improves@\\
+\mbox{}\verb@        nhalf <- 0@\\
+\mbox{}\verb@        if (llik<llikold) {@\\
+\mbox{}\verb@            llikprev <- -Inf@\\
+\mbox{}\verb@            while ((llik<llikold || llik>llikprev) && nhalf<maxhalf) {@\\
+\mbox{}\verb@                nhalf <- nhalf + 1@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@                # Set previous values@\\
+\mbox{}\verb@                llikprev <- llik@\\
+\mbox{}\verb@                thprev <- th@\\
+\mbox{}\verb@                f0prev <- f0@\\
+\mbox{}\verb@                infoinvBFGS.logprev <- infoinvBFGS.log@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@                f0 <- exp((log(f0) + log(f0old)) / 2)@\\
+\mbox{}\verb@                f0 <- f0 / sum(f0)@\\
+\mbox{}\verb@                f0 <- getTheta(spt=spt, f0=f0, mu=mu0, weights=weights, ySptIndex=1,@\\
+\mbox{}\verb@                               thetaStart=0, thetaControl=thetaControl)$fTilt[, 1]@\\
+\mbox{}\verb@                th <- getTheta(spt=spt, f0=f0, mu=mu, weights=weights, ySptIndex=ySptIndex,@\\
+\mbox{}\verb@                               thetaStart=th$theta, thetaControl=thetaControl)@\\
+\mbox{}\verb@                llik <- th$llik@\\
+\mbox{}\verb@                infoinvBFGS.log <- infoinvBFGS.log / 2@\\
+\mbox{}\verb@            }@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@            if (llik < llikprev) {@\\
+\mbox{}\verb@                nhalf <- nhalf - 1@\\
+\mbox{}\verb@                llik <- llikprev@\\
+\mbox{}\verb@                th <- thprev@\\
+\mbox{}\verb@                f0 <- f0prev@\\
+\mbox{}\verb@                infoinvBFGS.log <- infoinvBFGS.logprev@\\
+\mbox{}\verb@            }@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@            conv <- abs((llik - llikold) / (llik + 1e-100)) < eps@\\
+\mbox{}\verb@        }@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@        if (llik < llikold) {@\\
+\mbox{}\verb@            f0 <- f0old@\\
+\mbox{}\verb@            th <- thold@\\
+\mbox{}\verb@            llik <- llikold@\\
+\mbox{}\verb@            conv <- TRUE@\\
+\mbox{}\verb@        }@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@        if (trace) {@\\
+\mbox{}\verb@            printout <- paste0("iter ", iter, ": llik=", llik)@\\
+\mbox{}\verb@            if (nhalf > 0)@\\
+\mbox{}\verb@                printout <- paste0(printout, "; ", nhalf, " half steps")@\\
+\mbox{}\verb@            cat(printout, "\n")@\\
+\mbox{}\verb@        }@\\
+\mbox{}\verb@    }@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    # Final score calculation@\\
+\mbox{}\verb@        smm <- outer(spt, th$bPrimeSW, "-")@\\
+\mbox{}\verb@        ymm <- y - th$bPrimeSW@\\
+\mbox{}\verb@        yeqmu <- which(abs(ymm) < 1e-15)@\\
+\mbox{}\verb@        @\\
+\mbox{}\verb@          fTiltSWSums <- rowSums(th$fTiltSW)@\\
+\mbox{}\verb@  fTiltSWSumsWeighted <- apply(th$fTiltSW, MARGIN=1, function(x) sum(weights * x)) @\\
+\mbox{}\verb@  smmfTiltSW <- smm * th$fTiltSW@\\
+\mbox{}\verb@  ystd <- ymm / th$bPrime2SW@\\
+\mbox{}\verb@  ystdWeighted <- weights * ystd@\\
+\mbox{}\verb@  ystd[yeqmu] <- 0  # prevent 0/0@\\
+\mbox{}\verb@  ystdWeighted[yeqmu] <- 0  # prevent 0/0@\\
+\mbox{}\verb@  ystd[yeqmu] <- 0  # prevent 0/0@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  score.logT1 <- sptFreq.weighted@\\
+\mbox{}\verb@  score.logT2 <- fTiltSWSumsWeighted@\\
+\mbox{}\verb@  score.logT3 <- c(smmfTiltSW %*% ystdWeighted)@\\
+\mbox{}\verb@  score.log <- score.logT1 - score.logT2 - score.logT3@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  # Final info calculation@\\
+\mbox{}\verb@  info.logT1 <- diag(fTiltSWSumsWeighted)@\\
+\mbox{}\verb@  info.logT2 <- tcrossprod(th$fTiltSW)@\\
+\mbox{}\verb@  info.logT3 <- tcrossprod(smmfTiltSW, smmfTiltSW * rep(ystdWeighted, each=nrow(smmfTiltSW)))@\\
+\mbox{}\verb@  info.log <- info.logT1 - info.logT2 - info.logT3@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    list(f0=f0, llik=llik, th=th, conv=conv, iter=iter, nhalf=nhalf,@\\
+\mbox{}\verb@         score.log=score.log, info.log=info.log)@\\
+\mbox{}\verb@}@\\
+\mbox{}\verb@@{\NWsep}
+\end{list}
+\vspace{-1.5ex}
+\footnotesize
+\begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
+\item \NWtxtFileDefBy\ \NWlink{nuweb?}{?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}.
+
+\item{}
+\end{list}
+\vspace{4ex}
+\end{flushleft}
+\end{document}

@@ -1,32 +1,9 @@
-\documentclass[reqno]{amsart}
-\usepackage[margin=1in]{geometry}
-\usepackage[colorlinks=true,linkcolor=blue]{hyperref}
-\renewcommand{\NWtarget}[2]{\hypertarget{#1}{#2}}
-\renewcommand{\NWlink}[2]{\hyperlink{#1}{#2}}
-\newcommand{\bv}{\mathbf{v}}
-\newcommand{\bq}{\mathbf{q}}
-\newcommand{\bpi}{\text{\boldmath $\pi$}}
-\newcommand{\leqst}{\mathrel{\preceq^{st}}}
-\newcommand{\geqst}{\mathrel{\succeq^{st}}}
 
-\title{Generalized linear density ratio model (GLDRM) with frequency weights}
-\author{Aniko Szabo}
-\date{\today}
-
-
-The code is based on the \texttt{gldrm} package, with minor changes to incorporate frequency weights. The code is simplified a bit as well by removing some options:
-\begin{itemize}
-  \item sampling weights are removed
-  \item there is no variance/standard error calculation, and no inference against the null
-\end{itemize}
-
-
-@O R/wgldrm.R @{
 #' Main optimization function
 #'
 #' This function is called by the main \code{gldrm} function.
 #'
-#' @@keywords internal
+#' @keywords internal
 gldrm.control <- function(eps=1e-10, maxiter=100, returnfTiltMatrix=TRUE,
                           returnf0ScoreInfo=FALSE, print=FALSE,
                           betaStart=NULL, f0Start=NULL)
@@ -204,33 +181,30 @@ gldrmFit <- function(x, y, linkfun, linkinv, mu.eta, mu0=NULL, offset=NULL, weig
     class(fit) <- "gldrm"
     fit
 }
-@}
 
-
-@O R/wgldrm.R @{
 #' Beta optimization routing
 #'
-#' @@param x Covariate matrix.
-#' @@param y Response vector.
-#' @@param spt Vector of unique observed support points in the response.
-#' @@param ySptIndex Index of each \code{y} value within the \code{spt} vector.
-#' @@param f0 Current values of f0.
-#' @@param linkinv Inverse link function.
-#' @@param mu.eta Deriviative of inverse link function.
-#' @@param offset Vector of known offset values to be added to the linear
+#' @param x Covariate matrix.
+#' @param y Response vector.
+#' @param spt Vector of unique observed support points in the response.
+#' @param ySptIndex Index of each \code{y} value within the \code{spt} vector.
+#' @param f0 Current values of f0.
+#' @param linkinv Inverse link function.
+#' @param mu.eta Deriviative of inverse link function.
+#' @param offset Vector of known offset values to be added to the linear
 #' combination (x' beta) for each observation. Mostly intended for likelihood ratio
 #' and score confidence intervals.
-#'@@param sampprobs Optional matrix of sampling probabilities.
-#'@@param betaStart Starting values for beta (typically the estimates from the
+#'@param sampprobs Optional matrix of sampling probabilities.
+#'@param betaStart Starting values for beta (typically the estimates from the
 #' previous iteration).
-#'@@param thStart Starting theta values. Needs to be a list of values matching
+#'@param thStart Starting theta values. Needs to be a list of values matching
 #' the output of the \code{getTheta} function.
-#'@@param thetaConrol A "thetaControl" object returned from the \code{theta.control}
+#'@param thetaConrol A "thetaControl" object returned from the \code{theta.control}
 #' function.
-#'@@param betaControl A "betaControl" object returned from the \code{beta.control}
+#'@param betaControl A "betaControl" object returned from the \code{beta.control}
 #' function.
 #'
-#' @@return A list containing the following:
+#' @return A list containing the following:
 #' \itemize{
 #' \item \code{beta} Updated values.
 #' \item \code{mu} Updated mean for each observation.
@@ -244,7 +218,7 @@ gldrmFit <- function(x, y, linkfun, linkinv, mu.eta, mu0=NULL, offset=NULL, weig
 #' \code{betaControl} argument.)
 #' }
 #'
-#' @@keywords internal
+#' @keywords internal
 beta.control <- function (eps = 1e-10, maxiter = 1, maxhalf = 10) 
 {
     betaControl <- as.list(environment())
@@ -349,10 +323,7 @@ getBeta <- function(x, y, spt, ySptIndex, f0, linkinv, mu.eta, offset, weights,
 
     return(list(beta=beta, mu=mu, th=th, llik=llik, iter=iter, conv=conv))
 }
-@}
 
-
-@O R/wgldrm.R @{
 ## Computes log(sum(exp(x))) with better precision
 logSumExp <- function(x)
 {
@@ -371,21 +342,21 @@ g <- function(mu, m, M) log(mu-m) - log(M-mu)
 #' Each argument has a default value, which will be used unless a different
 #' value is provided by the user.
 #'
-#'@@param eps Convergence threshold for theta updates. Convergence is
+#'@param eps Convergence threshold for theta updates. Convergence is
 #' evaluated separately for each observation. An observation has converged when
 #' the difference between \eqn{b'(\theta)} and \eqn{\mu} is less than \code{epsTheta}.
-#'@@param maxiter Maximum number of iterations.
-#'@@param maxhalf Maximum number of half steps allowed per iteration if the
+#'@param maxiter Maximum number of iterations.
+#'@param maxhalf Maximum number of half steps allowed per iteration if the
 #' convergence criterion does not improve.
-#'@@param maxtheta Absolute value of theta is not allowed to exceed \code{maxtheta}.
-#'@@param logit Logical for whether logit transformation should be used. Use of
+#'@param maxtheta Absolute value of theta is not allowed to exceed \code{maxtheta}.
+#'@param logit Logical for whether logit transformation should be used. Use of
 #' this stabilizing transformation appears to be faster in general. Default is TRUE.
-#'@@param logsumexp Logical argument for whether log-sum-exp trick should be used.
+#'@param logsumexp Logical argument for whether log-sum-exp trick should be used.
 #' This may improve numerical stability at the expense of computational time.
 #'
-#' @@return Object of S3 class "thetaControl", which is a list of control arguments.
+#' @return Object of S3 class "thetaControl", which is a list of control arguments.
 #'
-#' @@export
+#' @export
 theta.control <- function(eps=1e-10, maxiter=100, maxhalf=20, maxtheta=500,
                           logit=TRUE, logsumexp=FALSE)
 {
@@ -397,23 +368,23 @@ theta.control <- function(eps=1e-10, maxiter=100, maxhalf=20, maxtheta=500,
 #' getTheta
 #' Updates theta. Vectorized but only updates observations that have not converged.
 #'
-#'@@param spt Support of the observed response variable. (This is the set of
+#'@param spt Support of the observed response variable. (This is the set of
 #' unique values observed, not the set of all possible values.)
-#'@@param f0 Values of the baseline distribution corresponding to the values of spt
-#'@@param mu The fitted mean for each observation. Note these values must lie
+#'@param f0 Values of the baseline distribution corresponding to the values of spt
+#'@param mu The fitted mean for each observation. Note these values must lie
 #' strictly within the range of the support.
-#'@@param sampprobs Matrix of sampling probabilities. The number of rows should
+#'@param sampprobs Matrix of sampling probabilities. The number of rows should
 #' equal the number of observations, and the number of columns should equal
 #' the number of unique observed support points.
-#'@@param ySptIndex Vector containing index of each obervation's response value
+#'@param ySptIndex Vector containing index of each obervation's response value
 #' within the \code{spt} vector. This is only needed to calculate the log-likelihood
 #' after each update.
-#'@@param thetaStart Vector of starting values. One value per observation. If
+#'@param thetaStart Vector of starting values. One value per observation. If
 #' \code{NULL}, zero is used as the starting value for each observation.
-#'@@param thetaControl Object of class \code{thetaControl}, which is a list of
+#'@param thetaControl Object of class \code{thetaControl}, which is a list of
 #' control arguments returned by the \code{thetaControl} function.
 #'
-#' @@return List containing the following:
+#' @return List containing the following:
 #' \itemize{
 #' \item \code{theta} Updated values.
 #' \item \code{fTilt} Matrix containing the exponentially tilted distribution for each
@@ -438,7 +409,7 @@ theta.control <- function(eps=1e-10, maxiter=100, maxhalf=20, maxtheta=500,
 #' \item \code{iter} Number of iterations until convergence was reached.
 #' }
 #'
-#' @@keywords internal
+#' @keywords internal
 getTheta <- function(spt, f0, mu, weights, ySptIndex, thetaStart=NULL, thetaControl=theta.control())
 {
     ## Extract control arguments
@@ -583,10 +554,7 @@ getTheta <- function(spt, f0, mu, weights, ySptIndex, thetaStart=NULL, thetaCont
          fTiltSW=fTiltSW, bPrimeSW=bPrimeSW, bPrime2SW=bPrime2SW,
          llik=llik, conv=conv, iter=iter)
 }
-@}
 
-
-@O R/wgldrm.R @{
 
 #' Control arguments for f0 update algorithm
 #'
@@ -594,18 +562,18 @@ getTheta <- function(spt, f0, mu, weights, ySptIndex, thetaStart=NULL, thetaCont
 #' Each argument has a default value, which will be used unless a different
 #' value is provided by the user.
 #'
-#'@@param eps Convergence threshold. The update has converged when the relative
+#'@param eps Convergence threshold. The update has converged when the relative
 #' change in log-likelihood between iterations is less than \code{eps}.
 #' absolute change is less than \code{thesh}.
-#'@@param maxiter Maximum number of iterations allowed.
-#'@@param maxhalf Maximum number of half steps allowed per iteration if
+#'@param maxiter Maximum number of iterations allowed.
+#'@param maxhalf Maximum number of half steps allowed per iteration if
 #' log-likelihood does not improve between iterations.
-#'@@param maxlogstep Maximum optimization step size allowed on the
+#'@param maxlogstep Maximum optimization step size allowed on the
 #' \code{log(f0)} scale.
 #'
-#' @@return Object of S3 class "f0Control", which is a list of control arguments.
+#' @return Object of S3 class "f0Control", which is a list of control arguments.
 #'
-#' @@export
+#' @export
 f0.control <- function(eps=1e-10, maxiter=1000, maxhalf=20, maxlogstep=2)
 {
     f0Control <- as.list(environment())
@@ -615,24 +583,24 @@ f0.control <- function(eps=1e-10, maxiter=1000, maxhalf=20, maxlogstep=2)
 
 #' f0 optimization routine
 #'
-#'@@param y Vector of response values.
-#'@@param spt Vector of unique observed support points in the response.
-#'@@param ySptIndex Index of each \code{y} value within \code{spt}.
-#'@@param sptFreq Vector containing frequency of each \code{spt} value.
-#'@@param sampprobs Optional matrix of sampling probabilities.
-#'@@param mu Fitted mean for each observation. Only used if \code{sampprobs=NULL}.
-#'@@param mu0 Mean constraing for f0.
-#'@@param f0Start Starting f0 values. (Typically the estimate from the previous
+#'@param y Vector of response values.
+#'@param spt Vector of unique observed support points in the response.
+#'@param ySptIndex Index of each \code{y} value within \code{spt}.
+#'@param sptFreq Vector containing frequency of each \code{spt} value.
+#'@param sampprobs Optional matrix of sampling probabilities.
+#'@param mu Fitted mean for each observation. Only used if \code{sampprobs=NULL}.
+#'@param mu0 Mean constraing for f0.
+#'@param f0Start Starting f0 values. (Typically the estimate from the previous
 #' iteration.)
-#'@@param thStart Starting theta values. Needs to be a list of values matching
+#'@param thStart Starting theta values. Needs to be a list of values matching
 #' the output of the \code{getTheta} function.
-#'@@param thetaControl A "thetaControl" object returned from the \code{theta.control}
+#'@param thetaControl A "thetaControl" object returned from the \code{theta.control}
 #' function.
-#'@@param f0Control An "f0Control" object returned from the \code{f0.control}
+#'@param f0Control An "f0Control" object returned from the \code{f0.control}
 #' function.
 #' trace Logical. If TRUE, then progress is printed to terminal at each iteration.
 #'
-#' @@return A list containing the following:
+#' @return A list containing the following:
 #' \itemize{
 #' \item \code{f0} Updated values.
 #' \item \code{llik} Updated log-likelihood.
@@ -645,7 +613,7 @@ f0.control <- function(eps=1e-10, maxiter=1000, maxhalf=20, maxlogstep=2)
 #' \item \code{info.log} Information matrix with respect to log(f0) at convergence.
 #' }
 #'
-#' @@keywords internal
+#' @keywords internal
 getf0 <- function(y, spt, ySptIndex, sptFreq, weights, sptFreq.weighted, mu, mu0, f0Start, thStart,
                   thetaControl=theta.control(), f0Control=f0.control(), trace=FALSE)
 {
@@ -813,6 +781,3 @@ getf0 <- function(y, spt, ySptIndex, sptFreq, weights, sptFreq.weighted, mu, mu0
     list(f0=f0, llik=llik, th=th, conv=conv, iter=iter, nhalf=nhalf,
          score.log=score.log, info.log=info.log)
 }
-@}
-
-\end{document}
