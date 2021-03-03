@@ -49,7 +49,7 @@ We will allow two options: having $\mu_1$ as a fixed pre-defined constant, or es
 
 \section{Initial setup}
 \begin{flushleft} \small\label{scrap1}\raggedright\small
-\NWtarget{nuweb?}{} \verb@"R/SPreg.R"@\nobreak\ {\footnotesize {?}}$\equiv$
+\NWtarget{nuweb1a}{} \verb@"R/SPreg.R"@\nobreak\ {\footnotesize {1a}}$\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -59,7 +59,7 @@ We will allow two options: having $\mu_1$ as a fixed pre-defined constant, or es
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtFileDefBy\ \NWlink{nuweb?}{?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}.
+\item \NWtxtFileDefBy\ \NWlink{nuweb1a}{1a}\NWlink{nuweb1b}{b}\NWlink{nuweb2}{, 2}\NWlink{nuweb3b}{, 3b}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}.
 
 \item{}
 \end{list}
@@ -68,7 +68,7 @@ We will allow two options: having $\mu_1$ as a fixed pre-defined constant, or es
 \subsection{Exchangeable model}
 
 \begin{equation}\label{E:1to1}
-	p_{r,n}= \binom{n}{r} \sum_{j=0}^{n-r} {(-1)^j} \binom{n-r}{j} \lambda_{r+j} = \binom{n}{r} \sum_{s=r}^{n} {(-1)^(s-r)} \binom{n-r}{s-r} \lambda_{s},
+	p_{r,n}= \binom{n}{r} \sum_{j=0}^{n-r} {(-1)^j} \binom{n-r}{j} \lambda_{r+j} = \binom{n}{r} \sum_{s=r}^{n} {(-1)^{(s-r)}} \binom{n-r}{s-r} \lambda_{s},
 \end{equation}
 
 \begin{equation}\label{E:also1to1}
@@ -77,7 +77,7 @@ We will allow two options: having $\mu_1$ as a fixed pre-defined constant, or es
 
 
 \begin{flushleft} \small\label{scrap2}\raggedright\small
-\NWtarget{nuweb?}{} \verb@"R/SPreg.R"@\nobreak\ {\footnotesize {?}}$\equiv$
+\NWtarget{nuweb1b}{} \verb@"R/SPreg.R"@\nobreak\ {\footnotesize {1b}}$\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -113,7 +113,7 @@ We will allow two options: having $\mu_1$ as a fixed pre-defined constant, or es
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtFileDefBy\ \NWlink{nuweb?}{?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}.
+\item \NWtxtFileDefBy\ \NWlink{nuweb1a}{1a}\NWlink{nuweb1b}{b}\NWlink{nuweb2}{, 2}\NWlink{nuweb3b}{, 3b}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}.
 
 \item{}
 \end{list}
@@ -129,7 +129,7 @@ where $p(r,n)(z)$ is the probability of observing $r$ responses in a cluster of 
 
 
 \begin{flushleft} \small\label{scrap3}\raggedright\small
-\NWtarget{nuweb?}{} \verb@"R/SPreg.R"@\nobreak\ {\footnotesize {?}}$\equiv$
+\NWtarget{nuweb2}{} \verb@"R/SPreg.R"@\nobreak\ {\footnotesize {2}}$\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -151,8 +151,8 @@ where $p(r,n)(z)$ is the probability of observing $r$ responses in a cluster of 
 \mbox{}\verb@    fam <- binomial(link=link)@\\
 \mbox{}\verb@    model_fun <- fam$linkinv@\\
 \mbox{}\verb@@\\
-\mbox{}\verb@    @\hbox{$\langle\,${\itshape Create model matrix from formula and data}\nobreak\ {\footnotesize \NWlink{nuweb?}{?}}$\,\rangle$}\verb@@\\
-\mbox{}\verb@    @\hbox{$\langle\,${\itshape Fit model}\nobreak\ {\footnotesize \NWlink{nuweb?}{?}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@    @\hbox{$\langle\,${\itshape Create model matrix from formula and data}\nobreak\ {\footnotesize \NWlink{nuweb3a}{3a}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@    @\hbox{$\langle\,${\itshape Fit model}\nobreak\ {\footnotesize \NWlink{nuweb6}{6}}$\,\rangle$}\verb@@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@    mt <- attr(mf, "terms")@\\
 \mbox{}\verb@    res <- list(coefficients = beta_new, q=q_new, niter = iter, loglik=logl,@\\
@@ -169,14 +169,14 @@ where $p(r,n)(z)$ is the probability of observing $r$ responses in a cluster of 
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtFileDefBy\ \NWlink{nuweb?}{?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}.
+\item \NWtxtFileDefBy\ \NWlink{nuweb1a}{1a}\NWlink{nuweb1b}{b}\NWlink{nuweb2}{, 2}\NWlink{nuweb3b}{, 3b}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}.
 
 \item{}
 \end{list}
 \vspace{4ex}
 \end{flushleft}
 \begin{flushleft} \small\label{scrap4}\raggedright\small
-\NWtarget{nuweb?}{} $\langle\,${\itshape Create model matrix from formula and data}\nobreak\ {\footnotesize {?}}$\,\rangle\equiv$
+\NWtarget{nuweb3a}{} $\langle\,${\itshape Create model matrix from formula and data}\nobreak\ {\footnotesize {3a}}$\,\rangle\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -210,7 +210,7 @@ where $p(r,n)(z)$ is the probability of observing $r$ responses in a cluster of 
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtMacroRefIn\ \NWlink{nuweb?}{?}.
+\item \NWtxtMacroRefIn\ \NWlink{nuweb2}{2}.
 
 \item{}
 \end{list}
@@ -233,7 +233,7 @@ p_{r,n}(z) = \sum_{s=0}^{N} h(r,s,n,N)p_{s,N}(z).
 We define internal functions that calculate the model-based predicted values for a set of parameters, and the log-likelihood.
 
 \begin{flushleft} \small\label{scrap5}\raggedright\small
-\NWtarget{nuweb?}{} \verb@"R/SPreg.R"@\nobreak\ {\footnotesize {?}}$\equiv$
+\NWtarget{nuweb3b}{} \verb@"R/SPreg.R"@\nobreak\ {\footnotesize {3b}}$\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -284,7 +284,7 @@ We define internal functions that calculate the model-based predicted values for
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtFileDefBy\ \NWlink{nuweb?}{?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}.
+\item \NWtxtFileDefBy\ \NWlink{nuweb1a}{1a}\NWlink{nuweb1b}{b}\NWlink{nuweb2}{, 2}\NWlink{nuweb3b}{, 3b}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}.
 
 \item{}
 \end{list}
@@ -295,7 +295,7 @@ We define internal functions that calculate the model-based predicted values for
 First, define a printing method which does not show the saved data and model matrix
 
 \begin{flushleft} \small\label{scrap6}\raggedright\small
-\NWtarget{nuweb?}{} \verb@"R/SPreg.R"@\nobreak\ {\footnotesize {?}}$\equiv$
+\NWtarget{nuweb4}{} \verb@"R/SPreg.R"@\nobreak\ {\footnotesize {4}}$\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -329,7 +329,7 @@ First, define a printing method which does not show the saved data and model mat
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtFileDefBy\ \NWlink{nuweb?}{?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}.
+\item \NWtxtFileDefBy\ \NWlink{nuweb1a}{1a}\NWlink{nuweb1b}{b}\NWlink{nuweb2}{, 2}\NWlink{nuweb3b}{, 3b}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}.
 
 \item{}
 \end{list}
@@ -354,7 +354,7 @@ The prediction method will predict for a variety of scenarios:
 \end{itemize}
 
 \begin{flushleft} \small\label{scrap7}\raggedright\small
-\NWtarget{nuweb?}{} \verb@"R/SPreg.R"@\nobreak\ {\footnotesize {?}}$\equiv$
+\NWtarget{nuweb5}{} \verb@"R/SPreg.R"@\nobreak\ {\footnotesize {5}}$\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -413,7 +413,7 @@ The prediction method will predict for a variety of scenarios:
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtFileDefBy\ \NWlink{nuweb?}{?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}\NWlink{nuweb?}{, ?}.
+\item \NWtxtFileDefBy\ \NWlink{nuweb1a}{1a}\NWlink{nuweb1b}{b}\NWlink{nuweb2}{, 2}\NWlink{nuweb3b}{, 3b}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}.
 
 \item{}
 \end{list}
@@ -435,14 +435,14 @@ Its expectation given the observed data and a current set of parameter estimates
 
 
 \begin{flushleft} \small\label{scrap8}\raggedright\small
-\NWtarget{nuweb?}{} $\langle\,${\itshape Fit model}\nobreak\ {\footnotesize {?}}$\,\rangle\equiv$
+\NWtarget{nuweb6}{} $\langle\,${\itshape Fit model}\nobreak\ {\footnotesize {6}}$\,\rangle\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
-\mbox{}\verb@    @\hbox{$\langle\,${\itshape Define internal functions}\nobreak\ {\footnotesize \NWlink{nuweb?}{?}}$\,\rangle$}\verb@@\\
-\mbox{}\verb@    @\hbox{$\langle\,${\itshape Set initial values}\nobreak\ {\footnotesize \NWlink{nuweb?}{?}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@    @\hbox{$\langle\,${\itshape Define internal functions}\nobreak\ {\footnotesize \NWlink{nuweb9a}{9a}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@    @\hbox{$\langle\,${\itshape Set initial values}\nobreak\ {\footnotesize \NWlink{nuweb9c}{9c}}$\,\rangle$}\verb@@\\
 \mbox{}\verb@@\\
-\mbox{}\verb@    @\hbox{$\langle\,${\itshape Setup for E-step}\nobreak\ {\footnotesize \NWlink{nuweb?}{?}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@    @\hbox{$\langle\,${\itshape Setup for E-step}\nobreak\ {\footnotesize \NWlink{nuweb8a}{8a}}$\,\rangle$}\verb@@\\
 \mbox{}\verb@    iter <- 0@\\
 \mbox{}\verb@    diff <- 100@\\
 \mbox{}\verb@    while ((diff > control$eps) & (iter < control$maxit)){@\\
@@ -450,9 +450,9 @@ Its expectation given the observed data and a current set of parameter estimates
 \mbox{}\verb@        beta_old <- beta_new@\\
 \mbox{}\verb@        q_old <- q_new@\\
 \mbox{}\verb@@\\
-\mbox{}\verb@        @\hbox{$\langle\,${\itshape E-step}\nobreak\ {\footnotesize \NWlink{nuweb?}{?}}$\,\rangle$}\verb@@\\
-\mbox{}\verb@        @\hbox{$\langle\,${\itshape M-step for beta}\nobreak\ {\footnotesize \NWlink{nuweb?}{?}}$\,\rangle$}\verb@@\\
-\mbox{}\verb@        @\hbox{$\langle\,${\itshape M-step for q}\nobreak\ {\footnotesize \NWlink{nuweb?}{?}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@        @\hbox{$\langle\,${\itshape E-step}\nobreak\ {\footnotesize \NWlink{nuweb8b}{8b}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@        @\hbox{$\langle\,${\itshape M-step for beta}\nobreak\ {\footnotesize \NWlink{nuweb8c}{8c}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@        @\hbox{$\langle\,${\itshape M-step for q}\nobreak\ {\footnotesize \NWlink{nuweb9b}{9b}}$\,\rangle$}\verb@@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@        diff <- sum(abs(beta_old - beta_new)) + sum(abs(q_old - q_new))@\\
 \mbox{}\verb@    }@\\
@@ -464,7 +464,7 @@ Its expectation given the observed data and a current set of parameter estimates
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtMacroRefIn\ \NWlink{nuweb?}{?}.
+\item \NWtxtMacroRefIn\ \NWlink{nuweb2}{2}.
 
 \item{}
 \end{list}
@@ -515,7 +515,7 @@ $$e_{is}^{(k)}w_{iys}^{(k)} = \frac{ f_i h(r_i, s, n_i, N) a_{iys}^{(k)}}{\sum_{
 where $a_{iys}^{(k)} = \binom{y}{s} {\theta(\beta^{(k)'}z_i)^s} {(1-\theta(\beta^{(k)'}z_i))}^{y-s} {q^{(k)}_y}$ and the denominator is just a normalizing constant.
 
 \begin{flushleft} \small\label{scrap9}\raggedright\small
-\NWtarget{nuweb?}{} $\langle\,${\itshape Setup for E-step}\nobreak\ {\footnotesize {?}}$\,\rangle\equiv$
+\NWtarget{nuweb8a}{} $\langle\,${\itshape Setup for E-step}\nobreak\ {\footnotesize {8a}}$\,\rangle\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -535,14 +535,14 @@ where $a_{iys}^{(k)} = \binom{y}{s} {\theta(\beta^{(k)'}z_i)^s} {(1-\theta(\beta
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtMacroRefIn\ \NWlink{nuweb?}{?}.
+\item \NWtxtMacroRefIn\ \NWlink{nuweb6}{6}.
 
 \item{}
 \end{list}
 \vspace{4ex}
 \end{flushleft}
 \begin{flushleft} \small\label{scrap10}\raggedright\small
-\NWtarget{nuweb?}{} $\langle\,${\itshape E-step}\nobreak\ {\footnotesize {?}}$\,\rangle\equiv$
+\NWtarget{nuweb8b}{} $\langle\,${\itshape E-step}\nobreak\ {\footnotesize {8b}}$\,\rangle\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -562,7 +562,7 @@ where $a_{iys}^{(k)} = \binom{y}{s} {\theta(\beta^{(k)'}z_i)^s} {(1-\theta(\beta
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtMacroRefIn\ \NWlink{nuweb?}{?}.
+\item \NWtxtMacroRefIn\ \NWlink{nuweb6}{6}.
 
 \item{}
 \end{list}
@@ -573,7 +573,7 @@ where $a_{iys}^{(k)} = \binom{y}{s} {\theta(\beta^{(k)'}z_i)^s} {(1-\theta(\beta
 The first term in \eqref{E:LowerBound} corresponds to a weighted binomial likelihood with $y$ as the cluster size, $s$ as the number of successes, a link function $\theta^{-1}$, and weights $f_i e_{is}^{(k)}w_{iys}^{(k)}$, so $\beta$ can be updated using logistic regression.
 
 \begin{flushleft} \small\label{scrap11}\raggedright\small
-\NWtarget{nuweb?}{} $\langle\,${\itshape M-step for beta}\nobreak\ {\footnotesize {?}}$\,\rangle\equiv$
+\NWtarget{nuweb8c}{} $\langle\,${\itshape M-step for beta}\nobreak\ {\footnotesize {8c}}$\,\rangle\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -584,7 +584,7 @@ The first term in \eqref{E:LowerBound} corresponds to a weighted binomial likeli
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtMacroRefIn\ \NWlink{nuweb?}{?}.
+\item \NWtxtMacroRefIn\ \NWlink{nuweb6}{6}.
 
 \item{}
 \end{list}
@@ -605,7 +605,7 @@ where $r=\hat\alpha_2 / \hat\alpha_2$ is the solution of the equation
 To ensure $q_y\geq 0$ for all $y=0,\ldots,N$, we need $r> -\frac 1N$. We reparameterize it as $r=-\frac 1N+\exp(\rho)$ to enforce the constraint.
 
 \begin{flushleft} \small\label{scrap12}\raggedright\small
-\NWtarget{nuweb?}{} $\langle\,${\itshape Define internal functions}\nobreak\ {\footnotesize {?}}$\,\rangle\equiv$
+\NWtarget{nuweb9a}{} $\langle\,${\itshape Define internal functions}\nobreak\ {\footnotesize {9a}}$\,\rangle\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -624,14 +624,14 @@ To ensure $q_y\geq 0$ for all $y=0,\ldots,N$, we need $r> -\frac 1N$. We reparam
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtMacroRefIn\ \NWlink{nuweb?}{?}.
+\item \NWtxtMacroRefIn\ \NWlink{nuweb6}{6}.
 
 \item{}
 \end{list}
 \vspace{4ex}
 \end{flushleft}
 \begin{flushleft} \small\label{scrap13}\raggedright\small
-\NWtarget{nuweb?}{} $\langle\,${\itshape M-step for q}\nobreak\ {\footnotesize {?}}$\,\rangle\equiv$
+\NWtarget{nuweb9b}{} $\langle\,${\itshape M-step for q}\nobreak\ {\footnotesize {9b}}$\,\rangle\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -645,7 +645,7 @@ To ensure $q_y\geq 0$ for all $y=0,\ldots,N$, we need $r> -\frac 1N$. We reparam
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtMacroRefIn\ \NWlink{nuweb?}{?}.
+\item \NWtxtMacroRefIn\ \NWlink{nuweb6}{6}.
 
 \item{}
 \end{list}
@@ -663,7 +663,7 @@ The initial values for $\beta$ can be selected using linear regression on transf
 For $q$, we will get the marginally compatible estimate for the pooled dataset, ensure a minimal probability of 0.01 at each value, then shift it to have mean $\mu_1$.
 
 \begin{flushleft} \small\label{scrap14}\raggedright\small
-\NWtarget{nuweb?}{} $\langle\,${\itshape Set initial values}\nobreak\ {\footnotesize {?}}$\,\rangle\equiv$
+\NWtarget{nuweb9c}{} $\langle\,${\itshape Set initial values}\nobreak\ {\footnotesize {9c}}$\,\rangle\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -707,7 +707,7 @@ For $q$, we will get the marginally compatible estimate for the pooled dataset, 
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtMacroRefIn\ \NWlink{nuweb?}{?}.
+\item \NWtxtMacroRefIn\ \NWlink{nuweb6}{6}.
 
 \item{}
 \end{list}
