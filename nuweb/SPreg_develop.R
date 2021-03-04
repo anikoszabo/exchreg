@@ -1,11 +1,6 @@
 library(devtools)
 <<<<<<< HEAD:nuweb/SPreg_develop.R
 source('nuweb/Nuweb.R')
-=======
-# create("../exchreg")
-source('z:/RForge/Nuweb.R')
-#source('/home/aszabo/RForge/Nuweb_linux.R')
->>>>>>> e91f19d9246eeff8aac80ff853ad9aaf61539ae9:SPreg_develop.R
 
 #  setting up the package and its infrastructure
 create("../exchreg")
@@ -16,7 +11,6 @@ use_build_ignore("nuweb")
 ex <- as.package("../exchreg")
 nuweb(ex)
 
-<<<<<<< HEAD:nuweb/SPreg_develop.R
 shell("cd c:/exchreg/nuweb/ && texify --pdf --quiet --run-viewer  SPregress.tex")
 shell("cd c:/exchreg/nuweb/ && texify --pdf --quiet --run-viewer  SPGLM.tex")
 shell("cd c:/exchreg/nuweb/ && texify --pdf --quiet --run-viewer  wgldrm.tex")
@@ -24,10 +18,6 @@ shell("cd c:/exchreg/nuweb/ && texify --pdf --quiet --run-viewer  wgldrm.tex")
 
 document(ex)
 load_all(ex)
-=======
-shell("cd c:/exchreg/ && texify --pdf --quiet --run-viewer --clean SPregress.tex")
-shell("cd c:/exchreg/ && texify --pdf --quiet --run-viewer --clean SPGLM.tex")
->>>>>>> e91f19d9246eeff8aac80ff853ad9aaf61539ae9:SPreg_develop.R
 
 ######### Testing wGLDRM
 run_gldrm <- 
