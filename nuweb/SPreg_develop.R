@@ -1,12 +1,11 @@
 library(devtools)
-<<<<<<< HEAD:nuweb/SPreg_develop.R
 source('nuweb/Nuweb.R')
 
 #  setting up the package and its infrastructure
 create("../exchreg")
 use_package("CorrBin")
 use_build_ignore("nuweb")
-
+use_gpl3_license()
 
 ex <- as.package("../exchreg")
 nuweb(ex)

@@ -1,15 +1,20 @@
 Package: exchreg
-Title: What the Package Does (One Line, Title Case)
+Title: Semi-parametric Regression for Exchangeable Binary Data
 Version: 0.0.0.9000
 Authors@R: 
-    person(given = "First",
-           family = "Last",
+  c(person(given = "Aniko",
+           family = "Szabo",
            role = c("aut", "cre"),
-           email = "first.last@example.com",
-           comment = c(ORCID = "YOUR-ORCID-ID"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to
-    pick a license
+           email = "aszabo@mcw.edu",
+           comment = c(ORCID = "0000-0002-8129-0614"))
+    person(given = "Xinran",
+           family = "Qi",
+           role = c("aut""),
+           email = "xinqi@mcw.edu"))
+
+Description: Fit semi-parametric relative-risk and generalized linear regression models for 
+ exchangeable clustered binary data with between-cluster covariates.
+License: GPL (>= 3)
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
