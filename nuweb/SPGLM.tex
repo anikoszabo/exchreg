@@ -1,3 +1,18 @@
+\newcommand{\NWtarget}[2]{#2}
+\newcommand{\NWlink}[2]{#2}
+\newcommand{\NWtxtMacroDefBy}{Fragment defined by}
+\newcommand{\NWtxtMacroRefIn}{Fragment referenced in}
+\newcommand{\NWtxtMacroNoRef}{Fragment never referenced}
+\newcommand{\NWtxtDefBy}{Defined by}
+\newcommand{\NWtxtRefIn}{Referenced in}
+\newcommand{\NWtxtNoRef}{Not referenced}
+\newcommand{\NWtxtFileDefBy}{File defined by}
+\newcommand{\NWtxtIdentsUsed}{Uses:}
+\newcommand{\NWtxtIdentsNotUsed}{Never used}
+\newcommand{\NWtxtIdentsDefed}{Defines:}
+\newcommand{\NWsep}{${\diamond}$}
+\newcommand{\NWnotglobal}{(not defined globally)}
+\newcommand{\NWuseHyperlinks}{}
 \documentclass[reqno]{amsart}
 \usepackage[margin=1in]{geometry}
 \usepackage[colorlinks=true,linkcolor=blue]{hyperref}
@@ -44,69 +59,92 @@ For the purpose of identifiability, the mean of marginal probability $\{ q_{y,N}
 
 \section{Main function}
 
-@O R/SPGLM.R @{
+\begin{flushleft} \small\label{scrap1}\raggedright\small
+\NWtarget{nuweb1}{} \verb@"../R/SPGLM.R"@\nobreak\ {\footnotesize {1}}$\equiv$
+\vspace{-1ex}
+\begin{list}{}{} \item
+\mbox{}\verb@@\\
+\mbox{}\verb@#' Fit semi-parametric GLM@\\
+\mbox{}\verb@#'@\\
+\mbox{}\verb@#'@{\tt @}\verb@rdname spglm@\\
+\mbox{}\verb@#'@{\tt @}\verb@param formula a one-sided formula of the form \code{cbind(r, s) ~ predictors} where \code{r} and \code{s} give the number of responses and non-responses within each cluster, respectively (so the cluster size is \code{r+s}), and \code{predictors} describes the covariates.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param data  an optional matrix or data frame containing the variables in the formula \code{formula}. By default the variables are taken from \code{environment(formula).}@\\
+\mbox{}\verb@#'@{\tt @}\verb@param subset  an optional vector specifying a subset of observations to be used.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param weight  an optional vector specifying observation weights.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param link      a link function for the mean.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param start     an optional list with elements named \code{beta}, \code{q}, and/or \code{mu1} giving starting values for estimation. If none or only some are specified, starting values are selected automatically.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param control a list with parameters controlling the algorithm.@\\
+\mbox{}\verb@#'@{\tt @}\verb@return an object of class \code{spglm} with the fitted model.@\\
+\mbox{}\verb@#'@{\tt @}\verb@export@\\
+\mbox{}\verb@#' @{\tt @}\verb@importFrom stats terms model.matrix@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@spglm <- function(formula, data, subset, weights, link="logit", start=NULL, control=list(eps=0.001, maxit=100), ...){@\\
+\mbox{}\verb@    fam <- binomial(link=link)@\\
+\mbox{}\verb@    @\\
+\mbox{}\verb@    @\hbox{$\langle\,${\itshape Create model matrix from formula and data}\nobreak\ {\footnotesize \NWlink{nuweb2}{2}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@    @\hbox{$\langle\,${\itshape Fit model}\nobreak\ {\footnotesize \NWlink{nuweb4}{4}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    mt <- attr(mf, "terms")@\\
+\mbox{}\verb@    res <- list(coefficients = beta_new, q=q_new, niter = iter, loglik=logl,@\\
+\mbox{}\verb@                link = link, call = mc, terms = mt,@\\
+\mbox{}\verb@                xlevels = .getXlevels(mt, mf),@\\
+\mbox{}\verb@                data_object=list(model_matrix=mm, resp=Y, n=rowSums(Y), weights=weights),@\\
+\mbox{}\verb@                model_fun=model_fun)@\\
+\mbox{}\verb@    class(res) <- "spglm"@\\
+\mbox{}\verb@    res@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@}@\\
+\mbox{}\verb@@{\NWsep}
+\end{list}
+\vspace{-1.5ex}
+\footnotesize
+\begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
 
-#'@@rdname spglm
-#'@@param formula a one-sided formula of the form \code{cbind(r, s) ~ predictors} where \code{r} and \code{s} give the number of responses and non-responses within each cluster, respectively (so the cluster size is \code{r+s}), and \code{predictors} describes the covariates.
-#'@@param data  an optional matrix or data frame containing the variables in the formula \code{formula}. By default the variables are taken from \code{environment(formula).}
-#'@@param subset	an optional vector specifying a subset of observations to be used.
-#'@@param weight	an optional vector specifying observation weights.
-#'@@param link	  a link function for the mean.
-#'@@param start	  an optional list with elements named \code{beta}, \code{q}, and/or \code{mu1} giving starting values for estimation. If none or only some are specified, starting values are selected automatically.
-#'@@param control	a list with parameters controlling the algorithm.
-#'@@return an object of class \code{spglm} with the fitted model.
-#'@@export
-#' @@importFrom stats terms model.matrix
+\item{}
+\end{list}
+\vspace{4ex}
+\end{flushleft}
+\begin{flushleft} \small\label{scrap2}\raggedright\small
+\NWtarget{nuweb2}{} $\langle\,${\itshape Create model matrix from formula and data}\nobreak\ {\footnotesize {2}}$\,\rangle\equiv$
+\vspace{-1ex}
+\begin{list}{}{} \item
+\mbox{}\verb@@\\
+\mbox{}\verb@   if (missing(formula) || (length(formula) != 3L))@\\
+\mbox{}\verb@        stop("'formula' missing or incorrect")@\\
+\mbox{}\verb@   if (missing(data))@\\
+\mbox{}\verb@        data <- environment(formula)@\\
+\mbox{}\verb@    mc <- match.call(expand.dots = FALSE)@\\
+\mbox{}\verb@    m <- match(c("formula", "data", "subset", "weights"), names(mc), 0L)@\\
+\mbox{}\verb@    m <- mc[c(1L,m)]@\\
+\mbox{}\verb@    if (is.matrix(eval(m$data, parent.frame())))@\\
+\mbox{}\verb@        m$data <- as.data.frame(data)@\\
+\mbox{}\verb@    m[[1L]] <- quote(stats::model.frame)@\\
+\mbox{}\verb@    mf <- eval(m, parent.frame())@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    # extract and check response variable@\\
+\mbox{}\verb@    Y <- model.response(mf)@\\
+\mbox{}\verb@    if (ncol(Y) != 2) stop("The response variable should be a 2-column matrix")@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    # create model matrix@\\
+\mbox{}\verb@    mm <- model.matrix(formula, data=mf)@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@    # extract weights@\\
+\mbox{}\verb@    weights <- as.vector(model.weights(mf))@\\
+\mbox{}\verb@    if (!is.null(weights) && !is.numeric(weights))@\\
+\mbox{}\verb@        stop("'weights' must be a numeric vector")@\\
+\mbox{}\verb@    if (!is.null(weights) && any(weights < 0))@\\
+\mbox{}\verb@        stop("negative weights not allowed")@\\
+\mbox{}\verb@@{\NWsep}
+\end{list}
+\vspace{-1.5ex}
+\footnotesize
+\begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
+\item \NWtxtMacroRefIn\ \NWlink{nuweb1}{1}.
 
-#' Semi-parametric generalized linear model
-spglm <- function(formula, data, subset, weights, link="logit", start=NULL, control=list(eps=0.001, maxit=100), ...){
-    fam <- binomial(link=link)
-    
-    @< Create model matrix from formula and data@>
-    @< Fit model@>
-
-    mt <- attr(mf, "terms")
-    res <- list(coefficients = beta_new, q=q_new, niter = iter, loglik=logl,
-                link = link, call = mc, terms = mt,
-                xlevels = .getXlevels(mt, mf),
-                data_object=list(model_matrix=mm, resp=Y, n=rowSums(Y), weights=weights),
-                model_fun=model_fun)
-    class(res) <- "spglm"
-    res
-
-}
-@}
-
-
-
-@D Create model matrix from formula and data @{
-   if (missing(formula) || (length(formula) != 3L))
-        stop("'formula' missing or incorrect")
-   if (missing(data))
-        data <- environment(formula)
-    mc <- match.call(expand.dots = FALSE)
-    m <- match(c("formula", "data", "subset", "weights"), names(mc), 0L)
-    m <- mc[c(1L,m)]
-    if (is.matrix(eval(m$data, parent.frame())))
-        m$data <- as.data.frame(data)
-    m[[1L]] <- quote(stats::model.frame)
-    mf <- eval(m, parent.frame())
-
-    # extract and check response variable
-    Y <- model.response(mf)
-    if (ncol(Y) != 2) stop("The response variable should be a 2-column matrix")
-
-    # create model matrix
-    mm <- model.matrix(formula, data=mf)
-
-    # extract weights
-    weights <- as.vector(model.weights(mf))
-    if (!is.null(weights) && !is.numeric(weights))
-        stop("'weights' must be a numeric vector")
-    if (!is.null(weights) && any(weights < 0))
-        stop("negative weights not allowed")
-@}
-
+\item{}
+\end{list}
+\vspace{4ex}
+\end{flushleft}
 \section{EM algorithm for model fitting}
 We will combine an Expectation Maximization with the Newton-Raphson algorithm proposed by Rathouz and Gao (2009) to estimate the model parameters. Recall that the observed data consists of the number of events, cluster size, and cluster-level covariates: $(y_i, N_i, \boldsymbol{Z}_i)$, $i=1,\cdots,I$. 
 
@@ -169,42 +207,51 @@ and $p_{N_iy_is_i}^{(k)}$ at the $k$th step of the iteration can be obtained by 
 Equation \eqref{E:ExpectedlogLikelihoodCompleteMapFromObs} can be interpreted as the log-likelihood for the SPGLM with fixed cluster size $N$ for an expanded data set: each observation with cluster size $N_i$ and number of responses $y_i$ is expanded to $(N+1)$ replicates with $0, 1, \ldots, N$, responses, respectively. The probabilities $p_{N_iy_is_i}^{(k)}$ serve as cluster weights in the expanded data set. From here we can use a slight generalization of the Newton-Raphson algorithm developed by Wurm and Rathouz (2018) to estimate the baseline density distribution $ \boldsymbol{q}_N^{(0)} $ and the regression coefficients $\boldsymbol{\beta}$. 
 
 
-@D Fit model @{
- while (iter<itermax & difference>tol) {
-    iter <- iter + 1
-    referencef0Pre <- referencef0
-    tiltingWsPre <- tiltingWs
-    betasPre <- betas
-    # passing parameter updates to the next iteration
-    if (iter == 1) {
-      startUpdates <- list(iter = iter,
-                           f0StartValue = NULL,
-                           thetaStartValue = NULL,
-                           betaStartValue = NULL)
-    } else {
-      startUpdates <- list(iter = iter,
-                           f0StartValue = referencef0Pre,
-                           thetaStartValue = tiltingWsPre,
-                           betaStartValue = betasPre)
-    }
-    # EM NR algorithm
-    res <- gldrMaximize(DesignMatrix.CONST, CBData, referencef0Pre, tiltingWsPre, startUpdates)
-    referencef0 <- res$density.ref 
-    # notice that this tilting parameter estimates are w.r.t the intermediate dataset, original dataset extended by max(cluster size)+1 times
-    tiltingWs <- res$tiltParam[(0:(nrow(CBData)-1))*length(referencef0)+1]
-    betas <- res$regressionEst
-    # monitor parameter estimates for baseline distribution, tilting parameters, regression coefficients
-    difference <- sum(abs(referencef0Pre - referencef0)) + sum(abs(betasPre - betas))
-    # difference <- sum(abs(referencef0Pre - referencef0)) + sum(abs(tiltingWsPre - tiltingWs)) + sum(abs(betasPre - betas))
-    cat("In iteration", iter, ", the corresponding log-likelihood is", observedLikelihood(CBData, referencef0, tiltingWs), ". \n")
-  }
-  # plot(referencef0, type="b")
-  
-  list(referencef0 = referencef0,
-       tiltingWs = tiltingWs,
-       betas = betas,
-       EMgldrmFitRes = res)
-@}
+\begin{flushleft} \small\label{scrap3}\raggedright\small
+\NWtarget{nuweb4}{} $\langle\,${\itshape Fit model}\nobreak\ {\footnotesize {4}}$\,\rangle\equiv$
+\vspace{-1ex}
+\begin{list}{}{} \item
+\mbox{}\verb@@\\
+\mbox{}\verb@ while (iter < control$maxit & difference > control$eps) {@\\
+\mbox{}\verb@    iter <- iter + 1@\\
+\mbox{}\verb@    referencef0Pre <- referencef0@\\
+\mbox{}\verb@    tiltingWsPre <- tiltingWs@\\
+\mbox{}\verb@    betasPre <- betas@\\
+\mbox{}\verb@    # passing parameter updates to the next iteration@\\
+\mbox{}\verb@    if (iter == 1) {@\\
+\mbox{}\verb@      startUpdates <- list(iter = iter,@\\
+\mbox{}\verb@                           f0StartValue = NULL,@\\
+\mbox{}\verb@                           thetaStartValue = NULL,@\\
+\mbox{}\verb@                           betaStartValue = NULL)@\\
+\mbox{}\verb@    } else {@\\
+\mbox{}\verb@      startUpdates <- list(iter = iter,@\\
+\mbox{}\verb@                           f0StartValue = referencef0Pre,@\\
+\mbox{}\verb@                           thetaStartValue = tiltingWsPre,@\\
+\mbox{}\verb@                           betaStartValue = betasPre)@\\
+\mbox{}\verb@    }@\\
+\mbox{}\verb@    # EM NR algorithm@\\
+\mbox{}\verb@    res <- gldrMaximize(DesignMatrix.CONST, CBData, referencef0Pre, tiltingWsPre, startUpdates)@\\
+\mbox{}\verb@    referencef0 <- res$density.ref @\\
+\mbox{}\verb@    # notice that this tilting parameter estimates are w.r.t the intermediate dataset, original dataset extended by max(cluster size)+1 times@\\
+\mbox{}\verb@    tiltingWs <- res$tiltParam[(0:(nrow(CBData)-1))*length(referencef0)+1]@\\
+\mbox{}\verb@    betas <- res$regressionEst@\\
+\mbox{}\verb@    # monitor parameter estimates for baseline distribution, tilting parameters, regression coefficients@\\
+\mbox{}\verb@    difference <- sum(abs(referencef0Pre - referencef0)) + sum(abs(betasPre - betas))@\\
+\mbox{}\verb@  }@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  list(referencef0 = referencef0,@\\
+\mbox{}\verb@       tiltingWs = tiltingWs,@\\
+\mbox{}\verb@       betas = betas,@\\
+\mbox{}\verb@       EMgldrmFitRes = res)@\\
+\mbox{}\verb@@{\NWsep}
+\end{list}
+\vspace{-1.5ex}
+\footnotesize
+\begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
+\item \NWtxtMacroRefIn\ \NWlink{nuweb1}{1}.
 
-
+\item{}
+\end{list}
+\vspace{4ex}
+\end{flushleft}
 \end{document}

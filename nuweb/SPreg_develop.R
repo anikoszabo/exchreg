@@ -1,19 +1,23 @@
 library(devtools)
-source('z:/RForge/Nuweb.R')
-#source('/home/aszabo/RForge/Nuweb_linux.R')
+source('nuweb/Nuweb.R')
+
+#  setting up the package and its infrastructure
+create("../exchreg")
+use_package("CorrBin")
+use_build_ignore("nuweb")
 
 
-run_nuweb(file="SPregress.w", path=getwd())
-run_nuweb(file="SPGLM.w", path=getwd())
-run_nuweb(file="wgldrm.w", path=getwd())
+ex <- as.package("../exchreg")
+nuweb(ex)
 
-source('R/SPreg.R', echo=FALSE)
-source('R/SPGLM.R', echo=FALSE)
-source('R/wgldrm.R', echo=FALSE)
+shell("cd c:/exchreg/nuweb/ && texify --pdf --quiet --run-viewer  SPregress.tex")
+shell("cd c:/exchreg/nuweb/ && texify --pdf --quiet --run-viewer  SPGLM.tex")
+shell("cd c:/exchreg/nuweb/ && texify --pdf --quiet --run-viewer  wgldrm.tex")
 
-shell("cd c:/exchreg/ && texify --pdf --quiet --run-viewer --clean SPGLM.tex")
 
-data(shelltox)
+document(ex)
+load_all(ex)
+
 ######### Testing wGLDRM
 run_gldrm <- 
 function (formula, data = NULL, link = "identity", mu0 = NULL,  weights=NULL,
@@ -71,13 +75,21 @@ function (formula, data = NULL, link = "identity", mu0 = NULL,  weights=NULL,
   modZ
 }
 
+data(shelltox)
 sh2 <- shelltox[rep(1:nrow(shelltox), shelltox$Freq), ]
+
+# original code
+res0 <- gldrm::gldrm(I(NResp/ClusterSize) ~ Trt, data=sh2, link="logit")
 # full dataset without frequency weights
 res1 <- run_gldrm(I(NResp/ClusterSize) ~ Trt, data=sh2, link="logit")
 # reduced dataset with frequency weights
 res2 <- run_gldrm(I(NResp/ClusterSize) ~ Trt, data=shelltox, link="logit", weights=shelltox$Freq)
 # rescale weights to a sum of 1
 res3 <- run_gldrm(I(NResp/ClusterSize) ~ Trt, data=shelltox, link="logit", weights=shelltox$Freq/sum(shelltox$Freq))
+
+all.equal(res0[c("conv", "iter", "beta", "f0", "mu0", "llik")],
+          res1[c("conv", "iter", "beta", "f0", "mu0", "llik")])
+
 
 all.equal(res1[c("conv", "iter", "beta", "f0", "mu0", "llik")],
           res2[c("conv", "iter", "beta", "f0", "mu0", "llik")])

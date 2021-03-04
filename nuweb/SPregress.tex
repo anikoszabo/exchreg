@@ -49,7 +49,7 @@ We will allow two options: having $\mu_1$ as a fixed pre-defined constant, or es
 
 \section{Initial setup}
 \begin{flushleft} \small\label{scrap1}\raggedright\small
-\NWtarget{nuweb1a}{} \verb@"R/SPreg.R"@\nobreak\ {\footnotesize {1a}}$\equiv$
+\NWtarget{nuweb1a}{} \verb@"../R/SPreg.R"@\nobreak\ {\footnotesize {1a}}$\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -77,7 +77,7 @@ We will allow two options: having $\mu_1$ as a fixed pre-defined constant, or es
 
 
 \begin{flushleft} \small\label{scrap2}\raggedright\small
-\NWtarget{nuweb1b}{} \verb@"R/SPreg.R"@\nobreak\ {\footnotesize {1b}}$\equiv$
+\NWtarget{nuweb1b}{} \verb@"../R/SPreg.R"@\nobreak\ {\footnotesize {1b}}$\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -129,10 +129,12 @@ where $p(r,n)(z)$ is the probability of observing $r$ responses in a cluster of 
 
 
 \begin{flushleft} \small\label{scrap3}\raggedright\small
-\NWtarget{nuweb2}{} \verb@"R/SPreg.R"@\nobreak\ {\footnotesize {2}}$\equiv$
+\NWtarget{nuweb2}{} \verb@"../R/SPreg.R"@\nobreak\ {\footnotesize {2}}$\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
+\mbox{}\verb@#' Fit semi-parametric relative risk model@\\
+\mbox{}\verb@#'@\\
 \mbox{}\verb@#'@{\tt @}\verb@rdname sprr@\\
 \mbox{}\verb@#'@{\tt @}\verb@param formula a one-sided formula of the form \code{cbind(r, s) ~ predictors} where \code{r} and \code{s} give the number of responses and non-responses within each cluster, respectively (so the cluster size is \code{r+s}), and \code{predictors} describes the covariates.@\\
 \mbox{}\verb@#'@{\tt @}\verb@param data  an optional matrix or data frame containing the variables in the formula \code{formula}. By default the variables are taken from \code{environment(formula).}@\\
@@ -146,7 +148,6 @@ where $p(r,n)(z)$ is the probability of observing $r$ responses in a cluster of 
 \mbox{}\verb@#'@{\tt @}\verb@export@\\
 \mbox{}\verb@#' @{\tt @}\verb@importFrom stats terms model.matrix@\\
 \mbox{}\verb@@\\
-\mbox{}\verb@#' Semi-parametric relative risk model@\\
 \mbox{}\verb@sprr <- function(formula, data, subset, weights, link="cloglog", mu1=NULL, start=NULL, control=list(eps=0.001, maxit=100), ...){@\\
 \mbox{}\verb@    fam <- binomial(link=link)@\\
 \mbox{}\verb@    model_fun <- fam$linkinv@\\
@@ -233,7 +234,7 @@ p_{r,n}(z) = \sum_{s=0}^{N} h(r,s,n,N)p_{s,N}(z).
 We define internal functions that calculate the model-based predicted values for a set of parameters, and the log-likelihood.
 
 \begin{flushleft} \small\label{scrap5}\raggedright\small
-\NWtarget{nuweb3b}{} \verb@"R/SPreg.R"@\nobreak\ {\footnotesize {3b}}$\equiv$
+\NWtarget{nuweb3b}{} \verb@"../R/SPreg.R"@\nobreak\ {\footnotesize {3b}}$\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -295,7 +296,7 @@ We define internal functions that calculate the model-based predicted values for
 First, define a printing method which does not show the saved data and model matrix
 
 \begin{flushleft} \small\label{scrap6}\raggedright\small
-\NWtarget{nuweb4}{} \verb@"R/SPreg.R"@\nobreak\ {\footnotesize {4}}$\equiv$
+\NWtarget{nuweb4}{} \verb@"../R/SPreg.R"@\nobreak\ {\footnotesize {4}}$\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -354,7 +355,7 @@ The prediction method will predict for a variety of scenarios:
 \end{itemize}
 
 \begin{flushleft} \small\label{scrap7}\raggedright\small
-\NWtarget{nuweb5}{} \verb@"R/SPreg.R"@\nobreak\ {\footnotesize {5}}$\equiv$
+\NWtarget{nuweb5}{} \verb@"../R/SPreg.R"@\nobreak\ {\footnotesize {5}}$\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\

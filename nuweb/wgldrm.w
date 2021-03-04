@@ -13,6 +13,8 @@
 \author{Aniko Szabo}
 \date{\today}
 
+\begin{document}
+\maketitle
 
 The code is based on the \texttt{gldrm} package, with minor changes to incorporate frequency weights. The code is simplified a bit as well by removing some options:
 \begin{itemize}
@@ -21,7 +23,7 @@ The code is based on the \texttt{gldrm} package, with minor changes to incorpora
 \end{itemize}
 
 
-@O R/wgldrm.R @{
+@O ../R/wgldrm.R @{
 #' Main optimization function
 #'
 #' This function is called by the main \code{gldrm} function.
@@ -207,7 +209,7 @@ gldrmFit <- function(x, y, linkfun, linkinv, mu.eta, mu0=NULL, offset=NULL, weig
 @}
 
 
-@O R/wgldrm.R @{
+@O ../R/wgldrm.R @{
 #' Beta optimization routing
 #'
 #' @@param x Covariate matrix.
@@ -352,7 +354,7 @@ getBeta <- function(x, y, spt, ySptIndex, f0, linkinv, mu.eta, offset, weights,
 @}
 
 
-@O R/wgldrm.R @{
+@O ../R/wgldrm.R @{
 ## Computes log(sum(exp(x))) with better precision
 logSumExp <- function(x)
 {
@@ -385,7 +387,7 @@ g <- function(mu, m, M) log(mu-m) - log(M-mu)
 #'
 #' @@return Object of S3 class "thetaControl", which is a list of control arguments.
 #'
-#' @@export
+#' @@keywords internal
 theta.control <- function(eps=1e-10, maxiter=100, maxhalf=20, maxtheta=500,
                           logit=TRUE, logsumexp=FALSE)
 {
@@ -586,7 +588,7 @@ getTheta <- function(spt, f0, mu, weights, ySptIndex, thetaStart=NULL, thetaCont
 @}
 
 
-@O R/wgldrm.R @{
+@O ../R/wgldrm.R @{
 
 #' Control arguments for f0 update algorithm
 #'
@@ -605,7 +607,7 @@ getTheta <- function(spt, f0, mu, weights, ySptIndex, thetaStart=NULL, thetaCont
 #'
 #' @@return Object of S3 class "f0Control", which is a list of control arguments.
 #'
-#' @@export
+#' @@keywords internal
 f0.control <- function(eps=1e-10, maxiter=1000, maxhalf=20, maxlogstep=2)
 {
     f0Control <- as.list(environment())

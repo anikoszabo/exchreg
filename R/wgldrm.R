@@ -356,7 +356,7 @@ g <- function(mu, m, M) log(mu-m) - log(M-mu)
 #'
 #' @return Object of S3 class "thetaControl", which is a list of control arguments.
 #'
-#' @export
+#' @keywords internal
 theta.control <- function(eps=1e-10, maxiter=100, maxhalf=20, maxtheta=500,
                           logit=TRUE, logsumexp=FALSE)
 {
@@ -573,7 +573,7 @@ getTheta <- function(spt, f0, mu, weights, ySptIndex, thetaStart=NULL, thetaCont
 #'
 #' @return Object of S3 class "f0Control", which is a list of control arguments.
 #'
-#' @export
+#' @keywords internal
 f0.control <- function(eps=1e-10, maxiter=1000, maxhalf=20, maxlogstep=2)
 {
     f0Control <- as.list(environment())

@@ -6,3 +6,12 @@
 *.log
 *.lst
 *.*~
+nuweb/*.log
+nuweb/*.aux
+nuweb/*.bbl
+nuweb/*.blg
+nuweb/*.out
+nuweb/*.tex
+nuweb/*.synctex
+nuweb/*.ind
+nuweb/*.ilg

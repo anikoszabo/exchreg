@@ -1,5 +1,6 @@
 
-
+#' Fit semi-parametric GLM
+#'
 #'@rdname spglm
 #'@param formula a one-sided formula of the form \code{cbind(r, s) ~ predictors} where \code{r} and \code{s} give the number of responses and non-responses within each cluster, respectively (so the cluster size is \code{r+s}), and \code{predictors} describes the covariates.
 #'@param data  an optional matrix or data frame containing the variables in the formula \code{formula}. By default the variables are taken from \code{environment(formula).}
@@ -12,7 +13,6 @@
 #'@export
 #' @importFrom stats terms model.matrix
 
-#' Semi-parametric generalized linear model
 spglm <- function(formula, data, subset, weights, link="logit", start=NULL, control=list(eps=0.001, maxit=100), ...){
     fam <- binomial(link=link)
     
@@ -44,7 +44,7 @@ spglm <- function(formula, data, subset, weights, link="logit", start=NULL, cont
             stop("negative weights not allowed")
     
     
-     while (iter<itermax & difference>tol) {
+     while (iter < control$maxit & difference > control$eps) {
         iter <- iter + 1
         referencef0Pre <- referencef0
         tiltingWsPre <- tiltingWs
@@ -69,10 +69,7 @@ spglm <- function(formula, data, subset, weights, link="logit", start=NULL, cont
         betas <- res$regressionEst
         # monitor parameter estimates for baseline distribution, tilting parameters, regression coefficients
         difference <- sum(abs(referencef0Pre - referencef0)) + sum(abs(betasPre - betas))
-        # difference <- sum(abs(referencef0Pre - referencef0)) + sum(abs(tiltingWsPre - tiltingWs)) + sum(abs(betasPre - betas))
-        cat("In iteration", iter, ", the corresponding log-likelihood is", observedLikelihood(CBData, referencef0, tiltingWs), ". \n")
       }
-      # plot(referencef0, type="b")
       
       list(referencef0 = referencef0,
            tiltingWs = tiltingWs,

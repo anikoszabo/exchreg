@@ -33,7 +33,7 @@ We will allow two options: having $\mu_1$ as a fixed pre-defined constant, or es
 
 
 \section{Initial setup}
-@O R/SPreg.R @{
+@O  ../R/SPreg.R @{
 require(CorrBin)
 @}
 
@@ -48,7 +48,7 @@ require(CorrBin)
 \end{equation}
 
 
-@O R/SPreg.R @{
+@O ../R/SPreg.R @{
 # lambda-to-p weight matrix, rows:r, cols:s
 # (-1)^(s-r)*choose(n,r)*choose(n-r,s-r)
 
@@ -88,7 +88,9 @@ Parameter estimation is based on the maximization likelihood estimator with resp
 where $p(r,n)(z)$ is the probability of observing $r$ responses in a cluster of size $n$ given covariates $z$, that can be calculated from \eqref{E:semipara} using the connection between $\lambda$s and probabilities in \eqref{E:1to1}, and $f_i$ are observation weights.
 
 
-@O R/SPreg.R @{
+@O ../R/SPreg.R @{
+#' Fit semi-parametric relative risk model
+#'
 #'@@rdname sprr
 #'@@param formula a one-sided formula of the form \code{cbind(r, s) ~ predictors} where \code{r} and \code{s} give the number of responses and non-responses within each cluster, respectively (so the cluster size is \code{r+s}), and \code{predictors} describes the covariates.
 #'@@param data  an optional matrix or data frame containing the variables in the formula \code{formula}. By default the variables are taken from \code{environment(formula).}
@@ -102,7 +104,6 @@ where $p(r,n)(z)$ is the probability of observing $r$ responses in a cluster of 
 #'@@export
 #' @@importFrom stats terms model.matrix
 
-#' Semi-parametric relative risk model
 sprr <- function(formula, data, subset, weights, link="cloglog", mu1=NULL, start=NULL, control=list(eps=0.001, maxit=100), ...){
     fam <- binomial(link=link)
     model_fun <- fam$linkinv
@@ -167,7 +168,7 @@ p_{r,n}(z) = \sum_{s=0}^{N} h(r,s,n,N)p_{s,N}(z).
 \subsection{Model predictions and likelihood}
 We define internal functions that calculate the model-based predicted values for a set of parameters, and the log-likelihood.
 
-@O R/SPreg.R @{
+@O ../R/SPreg.R @{
 pred_lp <- function(beta, data_object){
     lp <- data_object$model_matrix %*% beta
     c(lp)
@@ -216,7 +217,7 @@ loglik <- function(beta, q, data_object, model_fun){
 
 First, define a printing method which does not show the saved data and model matrix
 
-@O R/SPreg.R @{
+@O ../R/SPreg.R @{
 # based on print.lm
 print.sprr <- function(x, digits = max(3L, getOption("digits") - 3L),...){
   cat("\nA semi-parametric relative risk regression model fit\n")
@@ -262,7 +263,7 @@ The prediction method will predict for a variety of scenarios:
   \end{itemize}
 \end{itemize}
 
-@O R/SPreg.R @{
+@O ../R/SPreg.R @{
 predict.sprr <- function(object, newdata=NULL,
                               type=c("mean", "relrisk", "likelihood", "probvec", "lvec", "lp"),
                               newn=NULL, ...){
