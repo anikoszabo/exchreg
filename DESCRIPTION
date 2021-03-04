@@ -14,5 +14,8 @@ Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.1
+<<<<<<< HEAD
 Imports: 
     CorrBin
+=======
+>>>>>>> e91f19d9246eeff8aac80ff853ad9aaf61539ae9
