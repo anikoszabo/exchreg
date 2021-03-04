@@ -170,7 +170,7 @@ Equation \eqref{E:ExpectedlogLikelihoodCompleteMapFromObs} can be interpreted as
 
 
 @D Fit model @{
- while (iter<itermax & difference>tol) {
+ while (iter < control$maxit & difference > control$eps) {
     iter <- iter + 1
     referencef0Pre <- referencef0
     tiltingWsPre <- tiltingWs
@@ -195,10 +195,7 @@ Equation \eqref{E:ExpectedlogLikelihoodCompleteMapFromObs} can be interpreted as
     betas <- res$regressionEst
     # monitor parameter estimates for baseline distribution, tilting parameters, regression coefficients
     difference <- sum(abs(referencef0Pre - referencef0)) + sum(abs(betasPre - betas))
-    # difference <- sum(abs(referencef0Pre - referencef0)) + sum(abs(tiltingWsPre - tiltingWs)) + sum(abs(betasPre - betas))
-    cat("In iteration", iter, ", the corresponding log-likelihood is", observedLikelihood(CBData, referencef0, tiltingWs), ". \n")
   }
-  # plot(referencef0, type="b")
   
   list(referencef0 = referencef0,
        tiltingWs = tiltingWs,

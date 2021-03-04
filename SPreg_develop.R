@@ -1,4 +1,5 @@
 library(devtools)
+# create("../exchreg")
 source('z:/RForge/Nuweb.R')
 #source('/home/aszabo/RForge/Nuweb_linux.R')
 
@@ -11,6 +12,7 @@ source('R/SPreg.R', echo=FALSE)
 source('R/SPGLM.R', echo=FALSE)
 source('R/wgldrm.R', echo=FALSE)
 
+shell("cd c:/exchreg/ && texify --pdf --quiet --run-viewer --clean SPregress.tex")
 shell("cd c:/exchreg/ && texify --pdf --quiet --run-viewer --clean SPGLM.tex")
 
 data(shelltox)
