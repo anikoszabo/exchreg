@@ -6,6 +6,13 @@ create("../exchreg")
 use_package("CorrBin")
 use_build_ignore("nuweb")
 use_gpl3_license()
+desc::desc_add_author(given = "Xinran", family = "Qi", email = "xinqi@mcw.edu", role = "aut",
+               comment = NULL, file = ".", normalize = FALSE)
+
+# add data
+boric_acid <- CorrBin::read.CBData("z:/EOGeorge/Data/Binary/BoricAcidMousedata_processed.csv",
+                  sep=",", skip=1)
+use_data(boric_acid)
 
 ex <- as.package("../exchreg")
 nuweb(ex)

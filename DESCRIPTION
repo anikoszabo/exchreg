@@ -2,16 +2,15 @@ Package: exchreg
 Title: Semi-parametric Regression for Exchangeable Binary Data
 Version: 0.0.0.9000
 Authors@R: 
-  c(person(given = "Aniko",
-           family = "Szabo",
-           role = c("aut", "cre"),
-           email = "aszabo@mcw.edu",
-           comment = c(ORCID = "0000-0002-8129-0614"))
-    person(given = "Xinran",
-           family = "Qi",
-           role = c("aut""),
-           email = "xinqi@mcw.edu"))
-
+    c(person(given = "Aniko",
+             family = "Szabo",
+             role = c("aut", "cre"),
+             email = "aszabo@mcw.edu",
+             comment = c(ORCID = "0000-0002-8129-0614")),
+      person(given = "Xinran",
+             family = "Qi",
+             role = "aut",
+             email = "xinqi@mcw.edu"))
 Description: Fit semi-parametric relative-risk and generalized linear regression models for 
  exchangeable clustered binary data with between-cluster covariates.
 License: GPL (>= 3)
@@ -21,3 +20,5 @@ Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.1
 Imports: 
     CorrBin
+Depends: 
+    R (>= 2.10)
