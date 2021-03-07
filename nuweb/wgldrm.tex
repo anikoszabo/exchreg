@@ -67,7 +67,6 @@ The code is based on the \texttt{gldrm} package, with minor changes to incorpora
 \mbox{}\verb@              gldrmControl() function.")@\\
 \mbox{}\verb@    eps <- gldrmControl$eps@\\
 \mbox{}\verb@    maxiter <- gldrmControl$maxiter@\\
-\mbox{}\verb@    returnHess <- gldrmControl$returnHess@\\
 \mbox{}\verb@    returnfTiltMatrix <- gldrmControl$returnfTiltMatrix@\\
 \mbox{}\verb@    returnf0ScoreInfo <- gldrmControl$returnf0ScoreInfo@\\
 \mbox{}\verb@    print <- gldrmControl$print@\\
@@ -81,17 +80,12 @@ The code is based on the \texttt{gldrm} package, with minor changes to incorpora
 \mbox{}\verb@    # sptFreq <- table(ySptIndex)@\\
 \mbox{}\verb@    # attributes(sptFreq) <- NULL@\\
 \mbox{}\verb@@\\
-\mbox{}\verb@  # create a weight matrix for score.logT1 calculation@\\
-\mbox{}\verb@  weightsMatrix <- matrix(0, nrow=length(y), ncol=length(unique(y)), @\\
-\mbox{}\verb@        dimnames=list(paste0("obs", 1:length(y)), paste0("response", sort(unique(y)))))@\\
-\mbox{}\verb@  # fulfillment of weightMatrix@\\
-\mbox{}\verb@  for (obs in 1:length(y)) {@\\
-\mbox{}\verb@    weightsMatrix[obs, y[obs]==sort(unique(y))] <- weights[obs]@\\
-\mbox{}\verb@  }@\\
-\mbox{}\verb@  # weighted version of "sptFreq" @\\
-\mbox{}\verb@  sptFreq.weighted <- colSums(weightsMatrix)@\\
-\mbox{}\verb@@\\
-\mbox{}\verb@@\\
+\mbox{}\verb@    # create a weight matrix for score.logT1 calculation@\\
+\mbox{}\verb@    weightsMatrix <- matrix(0, nrow=n, ncol=length(spt))@\\
+\mbox{}\verb@    weightsMatrix[cbind(1:n, ySptIndex)] <- weights@\\
+\mbox{}\verb@    @\\
+\mbox{}\verb@    # weighted version of "sptFreq" @\\
+\mbox{}\verb@    sptFreq.weighted <- colSums(weightsMatrix)@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@    ## Initialize offset@\\
 \mbox{}\verb@    if (is.null(offset))@\\
@@ -171,7 +165,7 @@ The code is based on the \texttt{gldrm} package, with minor changes to incorpora
 \mbox{}\verb@        beta <- bb$beta@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@        ## update f0 and theta, with fixed beta (mu)@\\
-\mbox{}\verb@        ff <- getf0(y=y, spt=spt, ySptIndex=ySptIndex, sptFreq=sptFreq,@\\
+\mbox{}\verb@        ff <- getf0(y=y, spt=spt, ySptIndex=ySptIndex, @\\
 \mbox{}\verb@                    weights=weights, sptFreq.weighted=sptFreq.weighted, mu=mu, mu0=mu0, f0Start=f0, thStart=th,@\\
 \mbox{}\verb@                    thetaControl=thetaControl, f0Control=f0Control, trace=FALSE)@\\
 \mbox{}\verb@        th <- ff$th@\\
@@ -675,8 +669,7 @@ The code is based on the \texttt{gldrm} package, with minor changes to incorpora
 \mbox{}\verb@#'@{\tt @}\verb@param y Vector of response values.@\\
 \mbox{}\verb@#'@{\tt @}\verb@param spt Vector of unique observed support points in the response.@\\
 \mbox{}\verb@#'@{\tt @}\verb@param ySptIndex Index of each \code{y} value within \code{spt}.@\\
-\mbox{}\verb@#'@{\tt @}\verb@param sptFreq Vector containing frequency of each \code{spt} value.@\\
-\mbox{}\verb@#'@{\tt @}\verb@param sampprobs Optional matrix of sampling probabilities.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param sptFreq.weighted Vector containing weighted frequency of each \code{spt} value.@\\
 \mbox{}\verb@#'@{\tt @}\verb@param mu Fitted mean for each observation. Only used if \code{sampprobs=NULL}.@\\
 \mbox{}\verb@#'@{\tt @}\verb@param mu0 Mean constraing for f0.@\\
 \mbox{}\verb@#'@{\tt @}\verb@param f0Start Starting f0 values. (Typically the estimate from the previous@\\
@@ -703,7 +696,7 @@ The code is based on the \texttt{gldrm} package, with minor changes to incorpora
 \mbox{}\verb@#' }@\\
 \mbox{}\verb@#'@\\
 \mbox{}\verb@#' @{\tt @}\verb@keywords internal@\\
-\mbox{}\verb@getf0 <- function(y, spt, ySptIndex, sptFreq, weights, sptFreq.weighted, mu, mu0, f0Start, thStart,@\\
+\mbox{}\verb@getf0 <- function(y, spt, ySptIndex, weights, sptFreq.weighted, mu, mu0, f0Start, thStart,@\\
 \mbox{}\verb@                  thetaControl=theta.control(), f0Control=f0.control(), trace=FALSE)@\\
 \mbox{}\verb@{@\\
 \mbox{}\verb@    ## Extract theta control arguments@\\

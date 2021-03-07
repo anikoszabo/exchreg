@@ -25,6 +25,19 @@ shell("cd c:/exchreg/nuweb/ && texify --pdf --quiet --run-viewer  wgldrm.tex")
 document(ex)
 load_all(ex)
 
+## test SPGLM
+data(boric_acid)
+m <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, data=boric_acid, link="logit",
+           weights=boric_acid$Freq)
+
+ba2 <- boric_acid[rep(1:nrow(boric_acid), boric_acid$Freq),]
+m2 <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, data=ba2, link="logit")
+
+all.equal(coef(m), coef(m2))
+
+a <- spglm_pred_mean(m$coefficients, m$data_object, m$link)
+b <- spglm_loglik(beta=m$coefficients, f0=m$f0, m$data_object, m$link)
+
 ######### Testing wGLDRM
 run_gldrm <- 
 function (formula, data = NULL, link = "identity", mu0 = NULL,  weights=NULL,
@@ -139,15 +152,14 @@ b <- sprr(cbind(NResp, ClusterSize-NResp) ~ Trt+log(ClusterSize),
                 control=list(eps=0.01,maxit=100))
 
 #
-ba <- read.CBData("z:/EOGeorge/Data/Binary/BoricAcidMousedata_processed.csv",
-                  sep=",", skip=1)
+data("boric_acid")
 ba.mod <- sprr(cbind(NResp, ClusterSize-NResp) ~ Trt,
-          data=ba, weights=ba$Freq,link="log",
+          data=boric_acid, weights=boric_acid$Freq,link="log",
           control=list(eps=0.01,maxit=100))
 
 
 ba.mod1 <- sprr(cbind(NResp, ClusterSize-NResp) ~ Trt + log(ClusterSize),
-               data=ba, weights=ba$Freq, link="log",
+               data=boric_acid, weights=boric_acid$Freq, link="log",
                control=list(eps=0.01,maxit=100),
                start=list(q=ba.mod$q, beta=c(coef(ba.mod), 0),
                           mu1=lambda_from_p(ba.mod$q)[2]))

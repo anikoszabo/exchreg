@@ -8,7 +8,6 @@ getf0(
   y,
   spt,
   ySptIndex,
-  sptFreq,
   weights,
   sptFreq.weighted,
   mu,
@@ -27,7 +26,7 @@ getf0(
 
 \item{ySptIndex}{Index of each \code{y} value within \code{spt}.}
 
-\item{sptFreq}{Vector containing frequency of each \code{spt} value.}
+\item{sptFreq.weighted}{Vector containing weighted frequency of each \code{spt} value.}
 
 \item{mu}{Fitted mean for each observation. Only used if \code{sampprobs=NULL}.}
 
@@ -45,8 +44,6 @@ function.}
 \item{f0Control}{An "f0Control" object returned from the \code{f0.control}
 function.
 trace Logical. If TRUE, then progress is printed to terminal at each iteration.}
-
-\item{sampprobs}{Optional matrix of sampling probabilities.}
 }
 \value{
 A list containing the following:

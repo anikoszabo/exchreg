@@ -23,7 +23,6 @@ gldrmFit <- function(x, y, linkfun, linkinv, mu.eta, mu0=NULL, offset=NULL, weig
               gldrmControl() function.")
     eps <- gldrmControl$eps
     maxiter <- gldrmControl$maxiter
-    returnHess <- gldrmControl$returnHess
     returnfTiltMatrix <- gldrmControl$returnfTiltMatrix
     returnf0ScoreInfo <- gldrmControl$returnf0ScoreInfo
     print <- gldrmControl$print
@@ -37,17 +36,12 @@ gldrmFit <- function(x, y, linkfun, linkinv, mu.eta, mu0=NULL, offset=NULL, weig
     # sptFreq <- table(ySptIndex)
     # attributes(sptFreq) <- NULL
 
-  # create a weight matrix for score.logT1 calculation
-  weightsMatrix <- matrix(0, nrow=length(y), ncol=length(unique(y)), 
-        dimnames=list(paste0("obs", 1:length(y)), paste0("response", sort(unique(y)))))
-  # fulfillment of weightMatrix
-  for (obs in 1:length(y)) {
-    weightsMatrix[obs, y[obs]==sort(unique(y))] <- weights[obs]
-  }
-  # weighted version of "sptFreq" 
-  sptFreq.weighted <- colSums(weightsMatrix)
-
-
+    # create a weight matrix for score.logT1 calculation
+    weightsMatrix <- matrix(0, nrow=n, ncol=length(spt))
+    weightsMatrix[cbind(1:n, ySptIndex)] <- weights
+    
+    # weighted version of "sptFreq" 
+    sptFreq.weighted <- colSums(weightsMatrix)
 
     ## Initialize offset
     if (is.null(offset))
@@ -127,7 +121,7 @@ gldrmFit <- function(x, y, linkfun, linkinv, mu.eta, mu0=NULL, offset=NULL, weig
         beta <- bb$beta
 
         ## update f0 and theta, with fixed beta (mu)
-        ff <- getf0(y=y, spt=spt, ySptIndex=ySptIndex, sptFreq=sptFreq,
+        ff <- getf0(y=y, spt=spt, ySptIndex=ySptIndex, 
                     weights=weights, sptFreq.weighted=sptFreq.weighted, mu=mu, mu0=mu0, f0Start=f0, thStart=th,
                     thetaControl=thetaControl, f0Control=f0Control, trace=FALSE)
         th <- ff$th
@@ -586,8 +580,7 @@ f0.control <- function(eps=1e-10, maxiter=1000, maxhalf=20, maxlogstep=2)
 #'@param y Vector of response values.
 #'@param spt Vector of unique observed support points in the response.
 #'@param ySptIndex Index of each \code{y} value within \code{spt}.
-#'@param sptFreq Vector containing frequency of each \code{spt} value.
-#'@param sampprobs Optional matrix of sampling probabilities.
+#'@param sptFreq.weighted Vector containing weighted frequency of each \code{spt} value.
 #'@param mu Fitted mean for each observation. Only used if \code{sampprobs=NULL}.
 #'@param mu0 Mean constraing for f0.
 #'@param f0Start Starting f0 values. (Typically the estimate from the previous
@@ -614,7 +607,7 @@ f0.control <- function(eps=1e-10, maxiter=1000, maxhalf=20, maxlogstep=2)
 #' }
 #'
 #' @keywords internal
-getf0 <- function(y, spt, ySptIndex, sptFreq, weights, sptFreq.weighted, mu, mu0, f0Start, thStart,
+getf0 <- function(y, spt, ySptIndex, weights, sptFreq.weighted, mu, mu0, f0Start, thStart,
                   thetaControl=theta.control(), f0Control=f0.control(), trace=FALSE)
 {
     ## Extract theta control arguments

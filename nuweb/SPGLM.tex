@@ -72,24 +72,23 @@ For the purpose of identifiability, the mean of marginal probability $\{ q_{y,N}
 \mbox{}\verb@#'@{\tt @}\verb@param subset  an optional vector specifying a subset of observations to be used.@\\
 \mbox{}\verb@#'@{\tt @}\verb@param weight  an optional vector specifying observation weights.@\\
 \mbox{}\verb@#'@{\tt @}\verb@param link      a link function for the mean.@\\
-\mbox{}\verb@#'@{\tt @}\verb@param start     an optional list with elements named \code{beta}, \code{q}, and/or \code{mu1} giving starting values for estimation. If none or only some are specified, starting values are selected automatically.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param mu0       an optional numeric value constraining the mean of the baseline distribution@\\
 \mbox{}\verb@#'@{\tt @}\verb@param control a list with parameters controlling the algorithm.@\\
 \mbox{}\verb@#'@{\tt @}\verb@return an object of class \code{spglm} with the fitted model.@\\
 \mbox{}\verb@#'@{\tt @}\verb@export@\\
 \mbox{}\verb@#' @{\tt @}\verb@importFrom stats terms model.matrix@\\
 \mbox{}\verb@@\\
-\mbox{}\verb@spglm <- function(formula, data, subset, weights, link="logit", start=NULL, control=list(eps=0.001, maxit=100), ...){@\\
-\mbox{}\verb@    fam <- binomial(link=link)@\\
-\mbox{}\verb@    @\\
+\mbox{}\verb@spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL, @\\
+\mbox{}\verb@                  control=list(eps=0.001, maxit=100), ...){@\\
+\mbox{}\verb@@\\
 \mbox{}\verb@    @\hbox{$\langle\,${\itshape Create model matrix from formula and data}\nobreak\ {\footnotesize \NWlink{nuweb2}{2}}$\,\rangle$}\verb@@\\
-\mbox{}\verb@    @\hbox{$\langle\,${\itshape Fit model}\nobreak\ {\footnotesize \NWlink{nuweb4}{4}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@    @\hbox{$\langle\,${\itshape Fit model}\nobreak\ {\footnotesize \NWlink{nuweb3b}{3b}}$\,\rangle$}\verb@@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@    mt <- attr(mf, "terms")@\\
-\mbox{}\verb@    res <- list(coefficients = beta_new, q=q_new, niter = iter, loglik=logl,@\\
+\mbox{}\verb@    res <- list(coefficients = betas, f0=referencef0, mu0=mu0, niter = iter, loglik=mod$llik,@\\
 \mbox{}\verb@                link = link, call = mc, terms = mt,@\\
 \mbox{}\verb@                xlevels = .getXlevels(mt, mf),@\\
-\mbox{}\verb@                data_object=list(model_matrix=mm, resp=Y, n=rowSums(Y), weights=weights),@\\
-\mbox{}\verb@                model_fun=model_fun)@\\
+\mbox{}\verb@                data_object=list(model_matrix=mm, resp=Y, n=rowSums(Y), weights=weights, offset=offset))@\\
 \mbox{}\verb@    class(res) <- "spglm"@\\
 \mbox{}\verb@    res@\\
 \mbox{}\verb@@\\
@@ -99,6 +98,7 @@ For the purpose of identifiability, the mean of marginal probability $\{ q_{y,N}
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
+\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb3a}{, 3a}.
 
 \item{}
 \end{list}
@@ -114,7 +114,7 @@ For the purpose of identifiability, the mean of marginal probability $\{ q_{y,N}
 \mbox{}\verb@   if (missing(data))@\\
 \mbox{}\verb@        data <- environment(formula)@\\
 \mbox{}\verb@    mc <- match.call(expand.dots = FALSE)@\\
-\mbox{}\verb@    m <- match(c("formula", "data", "subset", "weights"), names(mc), 0L)@\\
+\mbox{}\verb@    m <- match(c("formula", "data", "subset", "weights", "offset"), names(mc), 0L)@\\
 \mbox{}\verb@    m <- mc[c(1L,m)]@\\
 \mbox{}\verb@    if (is.matrix(eval(m$data, parent.frame())))@\\
 \mbox{}\verb@        m$data <- as.data.frame(data)@\\
@@ -127,13 +127,29 @@ For the purpose of identifiability, the mean of marginal probability $\{ q_{y,N}
 \mbox{}\verb@@\\
 \mbox{}\verb@    # create model matrix@\\
 \mbox{}\verb@    mm <- model.matrix(formula, data=mf)@\\
+\mbox{}\verb@    @\\
+\mbox{}\verb@    if (is.character(link)) {@\\
+\mbox{}\verb@      link <- stats::make.link(link)@\\
+\mbox{}\verb@    }@\\
+\mbox{}\verb@    else if (!is.list(link) || !(all(c("linkfun", "linkinv", @\\
+\mbox{}\verb@                                     "mu.eta") %in% names(link)))) {@\\
+\mbox{}\verb@      stop(paste0("link should be a character string or a list containing ", @\\
+\mbox{}\verb@                "functions named linkfun, linkinv, and mu.eta"))@\\
+\mbox{}\verb@    }@\\
 \mbox{}\verb@@\\
+\mbox{}\verb@    # extract offset@\\
+\mbox{}\verb@    offset <- as.vector(model.offset(mf))@\\
+\mbox{}\verb@    if (is.null(offset)) @\\
+\mbox{}\verb@      offset <- rep(0, nrow(mm))@\\
+\mbox{}\verb@    @\\
 \mbox{}\verb@    # extract weights@\\
 \mbox{}\verb@    weights <- as.vector(model.weights(mf))@\\
 \mbox{}\verb@    if (!is.null(weights) && !is.numeric(weights))@\\
 \mbox{}\verb@        stop("'weights' must be a numeric vector")@\\
 \mbox{}\verb@    if (!is.null(weights) && any(weights < 0))@\\
 \mbox{}\verb@        stop("negative weights not allowed")@\\
+\mbox{}\verb@     if (is.null(weights))@\\
+\mbox{}\verb@        weights <- rep(1, nrow(mm))@\\
 \mbox{}\verb@@{\NWsep}
 \end{list}
 \vspace{-1.5ex}
@@ -148,20 +164,91 @@ For the purpose of identifiability, the mean of marginal probability $\{ q_{y,N}
 \section{EM algorithm for model fitting}
 We will combine an Expectation Maximization with the Newton-Raphson algorithm proposed by Rathouz and Gao (2009) to estimate the model parameters. Recall that the observed data consists of the number of events, cluster size, and cluster-level covariates: $(y_i, N_i, \boldsymbol{Z}_i)$, $i=1,\cdots,I$. 
 
-\subsubsection{Observed data log-likelihood}
+\subsection{Observed data log-likelihood}
 Under the marginal compatibility assumption, the observed log-likelihood function is:
 \begin{equation}\label{E:loglikelihood}
 \begin{split}
     \ell (q_{y,N}, \boldsymbol{\beta}) &= \sum_{i=1}^I \log \{ q_{y_i,N_i} (\boldsymbol{Z}_i, \boldsymbol{\beta}) \} \\
-    &= \sum_{i=1}^I \log \bigg[ \binom{N_i}{y_i} \sum_{t=y}^{N-N_i+y_i} \dfrac{\binom{N-N_i}{t-y_i}}{\binom{N}{Y_i}} \times \dfrac{q_{t,N}^{(0)} \times \exp \{ \omega(\boldsymbol{Z}_i; \boldsymbol{\beta}) t \}} {\sum_{t'=0}^{N} q_{t',N}^{(0)} \times \exp \{ \omega(\boldsymbol{Z}_i; \boldsymbol{\beta}) t' \}}  \bigg].
+    &= \sum_{i=1}^I \log \bigg[ \binom{N_i}{y_i} \sum_{t=y}^{N-N_i+y_i} \dfrac{\binom{N-N_i}{t-y_i}}{\binom{N}{t}} \times \dfrac{q_{t,N}^{(0)} \times \exp \{ \omega(\boldsymbol{Z}_i; \boldsymbol{\beta}) t \}} {\sum_{t'=0}^{N} q_{t',N}^{(0)} \times \exp \{ \omega(\boldsymbol{Z}_i; \boldsymbol{\beta}) t' \}}  \bigg].
 \end{split}
 \end{equation}
 
+\subsection{Model prediction and likelihood}
+We define internal function to calculate predicted values and the log-likelihood.
+
+\begin{flushleft} \small\label{scrap3}\raggedright\small
+\NWtarget{nuweb3a}{} \verb@"../R/SPGLM.R"@\nobreak\ {\footnotesize {3a}}$\equiv$
+\vspace{-1ex}
+\begin{list}{}{} \item
+\mbox{}\verb@@\\
+\mbox{}\verb@spglm_pred_mean <- function(beta, data_object, link){@\\
+\mbox{}\verb@  eta <- c(data_object$model_matrix %*% beta + data_object$offset)@\\
+\mbox{}\verb@  mu <- link$linkinv(eta)@\\
+\mbox{}\verb@  mu@\\
+\mbox{}\verb@}@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@spglm_loglik <- function(beta, f0, data_object, link){@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@    mu <- spglm_pred_mean(beta=beta, data_object=data_object, link=link)@\\
+\mbox{}\verb@    N <- max(data_object$n)@\\
+\mbox{}\verb@    nobs <- nrow(data_object$model_matrix)@\\
+\mbox{}\verb@    @\\
+\mbox{}\verb@    # ySptIndex is only used to calculate the log-likelihood, which we will not be using@\\
+\mbox{}\verb@    th <- getTheta(spt=(0:N)/N, f0=f0, mu=mu, weights=data_object$weights, ySptIndex=rep(1, nobs),@\\
+\mbox{}\verb@                   thetaStart=NULL, thetaControl=theta.control())@\\
+\mbox{}\verb@    @\\
+\mbox{}\verb@    hp <- sapply(0:N, function(t)dhyper(x=data_object$resp[,1], m=data_object$n, n=N-data_object$n, k=t))   @\\
+\mbox{}\verb@    llik_term <- rowSums(t(th$fTilt) * hp)@\\
+\mbox{}\verb@    llik <- llik_term %*% data_object$weights@\\
+\mbox{}\verb@    c(llik)@\\
+\mbox{}\verb@}@\\
+\mbox{}\verb@@{\NWsep}
+\end{list}
+\vspace{-1.5ex}
+\footnotesize
+\begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
+\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb3a}{, 3a}.
+
+\item{}
+\end{list}
+\vspace{4ex}
+\end{flushleft}
 It is difficult to utilize the observed log-likelihood directly for parameter estimation. Its score function is complex because there is a logarithm of a sum in \eqref{E:loglikelihood}. Therefore, we implement an EM algorithm for parameter estimation.
 
 
+\begin{flushleft} \small\label{scrap4}\raggedright\small
+\NWtarget{nuweb3b}{} $\langle\,${\itshape Fit model}\nobreak\ {\footnotesize {3b}}$\,\rangle\equiv$
+\vspace{-1ex}
+\begin{list}{}{} \item
+\mbox{}\verb@@\\
+\mbox{}\verb@ @\hbox{$\langle\,${\itshape Set starting values}\nobreak\ {\footnotesize \NWlink{nuweb6}{6}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@ @\hbox{$\langle\,${\itshape Set up for E-step}\nobreak\ {\footnotesize \NWlink{nuweb4}{4}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@ @\\
+\mbox{}\verb@ iter <- 0@\\
+\mbox{}\verb@ difference <- 100@\\
+\mbox{}\verb@ while (iter < control$maxit & difference > control$eps) {@\\
+\mbox{}\verb@    iter <- iter + 1@\\
+\mbox{}\verb@    referencef0Pre <- referencef0@\\
+\mbox{}\verb@    betasPre <- betas@\\
+\mbox{}\verb@    @\\
+\mbox{}\verb@    @\hbox{$\langle\,${\itshape E-step}\nobreak\ {\footnotesize \NWlink{nuweb5a}{5a}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@    @\hbox{$\langle\,${\itshape M-step}\nobreak\ {\footnotesize \NWlink{nuweb5b}{5b}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@    @\\
+\mbox{}\verb@    difference <- sum(abs(referencef0Pre - referencef0)) + sum(abs(betasPre - betas))@\\
+\mbox{}\verb@  }@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@@{\NWsep}
+\end{list}
+\vspace{-1.5ex}
+\footnotesize
+\begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
+\item \NWtxtMacroRefIn\ \NWlink{nuweb1}{1}.
 
-\subsubsection{Missing data setup}
+\item{}
+\end{list}
+\vspace{4ex}
+\end{flushleft}
+\subsection{Missing data setup}
 Stefanescu et al (2003) have proved that the marginal compatibility assumption is equivalent to assuming that each cluster of size $N'$ arises from a cluster of maximal cluster size $N$ with some binary observations missing completely missing at random (MCAR). The missing data setup and the expectation step from EM algorithm are based on this MCAR interpretation. 
 
 For the setup of the EM algorithm, the complete data are clusters of size $N$ with a corresponding number of events $s_i$, where $s_i \in \{y_i, \cdots, N \}$. The missing data correspond to the unobserved outcomes in of the $(N - N_i)$ cluster components. The missing data can be summarized as $(s_i - y_i)$ events out of $(N - N_i)$ elements.
@@ -176,9 +263,41 @@ The complete data log-likelihood is:
 where $q_{s_i,N}$ is the probability of achieving $s_i$ events in a cluster of size $N$ in the complete data set. The $\mathds{1}$ denotes the indicator function.
 
 
+Equation \ref{E:logLikelihoodCompleteMapFromObs} can be interpreted as the log-likelihood of a model with fixed cluster size $N$ for an expanded data set: each observation with cluster size $N_i$ and number of responses $y_i$ is expanded to $(N+1)$ replicates with $0, 1, \ldots, N$, responses, respectively.
 
-\subsubsection{Expectation step}
-%For complete data in which all clusters have $N$ observations, the marginal probability of achieving $y$ events out of $N$ observations within a cluster is denoted with parameter $q_{y,N}$. 
+\begin{flushleft} \small\label{scrap5}\raggedright\small
+\NWtarget{nuweb4}{} $\langle\,${\itshape Set up for E-step}\nobreak\ {\footnotesize {4}}$\,\rangle\equiv$
+\vspace{-1ex}
+\begin{list}{}{} \item
+\mbox{}\verb@@\\
+\mbox{}\verb@  # replace each cluster with N+1 clusters of size N@\\
+\mbox{}\verb@  new <- cbind(y=0:N)@\\
+\mbox{}\verb@  rep_idx <- rep(1:nrow(Y), each=nrow(new))@\\
+\mbox{}\verb@  Y2 <- cbind(1:nrow(Y), Y)[rep_idx,]@\\
+\mbox{}\verb@  colnames(Y2) <- c("i", "resp","nonresp")@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@  rep_idx2 <- rep(1:nrow(new), times=nrow(Y))@\\
+\mbox{}\verb@  Ycomb <- cbind(Y2, new[rep_idx2, ,drop=FALSE])@\\
+\mbox{}\verb@  # select possible combinations@\\
+\mbox{}\verb@  possible <- (Ycomb[,"y"] >= Ycomb[,"resp"]) & (N-Ycomb[,"y"] >= Ycomb[,"nonresp"])@\\
+\mbox{}\verb@  Ycomb <- Ycomb[possible,]@\\
+\mbox{}\verb@ @\\
+\mbox{}\verb@  mm2 <- mm[Ycomb[,"i"], ,drop=FALSE]@\\
+\mbox{}\verb@  weights2 <- weights[Ycomb[,"i"]]@\\
+\mbox{}\verb@  offset2 <- offset[Ycomb[,"i"]]@\\
+\mbox{}\verb@@{\NWsep}
+\end{list}
+\vspace{-1.5ex}
+\footnotesize
+\begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
+\item \NWtxtMacroRefIn\ \NWlink{nuweb3b}{3b}.
+
+\item{}
+\end{list}
+\vspace{4ex}
+\end{flushleft}
+\subsection{Expectation step}
+
 We take the expectation of complete data log-likelihood \eqref{E:logLikelihoodCompleteMapFromObs} given parameters from the previous $k^{th}$ iteration, which is shown as follows:
 \begin{equation}\label{E:ExpectedlogLikelihoodCompleteMapFromObs}
 \begin{split}
@@ -197,58 +316,106 @@ p_{N'y'y} &= \textbf{Pr}_N(Y=y \mid Y'=y',N') \\
           &= \frac{\binom{y}{y'} \binom{N-y}{N'-y'} q_{y,N}}{\sum_{t=y'}^{N-N'+y'} \dbinom{t}{y'} \binom{N-t}{N'-y'} q_{t,N}},
 \end{split}
 \end{equation}
-and $p_{N_iy_is_i}^{(k)}$ at the $k$th step of the iteration can be obtained by using $q_{y,N}^{(k)}$ on the right-hand side of the expression.
+and $p_{N_iy_is_i}^{(k)}$ at the $k$th step of the iteration can be obtained by using $q_{y,N}^{(k)}$ on the right-hand side of the expression. 
+
+The value of $q_{y,N}^{(k)}((\boldsymbol{Z}_i; \boldsymbol{\beta}^{(k)})$ can be obtained from ${q_{y,N}^{(0)}}^{(k)}$ using \ref{M:densitySPGLM}. But it is also returned by \texttt{gldrmFit} as \texttt{fTiltMatrix}.
 
 
-
-
-\subsubsection{Maximization step}
-
-Equation \eqref{E:ExpectedlogLikelihoodCompleteMapFromObs} can be interpreted as the log-likelihood for the SPGLM with fixed cluster size $N$ for an expanded data set: each observation with cluster size $N_i$ and number of responses $y_i$ is expanded to $(N+1)$ replicates with $0, 1, \ldots, N$, responses, respectively. The probabilities $p_{N_iy_is_i}^{(k)}$ serve as cluster weights in the expanded data set. From here we can use a slight generalization of the Newton-Raphson algorithm developed by Wurm and Rathouz (2018) to estimate the baseline density distribution $ \boldsymbol{q}_N^{(0)} $ and the regression coefficients $\boldsymbol{\beta}$. 
-
-
-\begin{flushleft} \small\label{scrap3}\raggedright\small
-\NWtarget{nuweb4}{} $\langle\,${\itshape Fit model}\nobreak\ {\footnotesize {4}}$\,\rangle\equiv$
+\begin{flushleft} \small\label{scrap6}\raggedright\small
+\NWtarget{nuweb5a}{} $\langle\,${\itshape E-step}\nobreak\ {\footnotesize {5a}}$\,\rangle\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
-\mbox{}\verb@ while (iter < control$maxit & difference > control$eps) {@\\
-\mbox{}\verb@    iter <- iter + 1@\\
-\mbox{}\verb@    referencef0Pre <- referencef0@\\
-\mbox{}\verb@    tiltingWsPre <- tiltingWs@\\
-\mbox{}\verb@    betasPre <- betas@\\
-\mbox{}\verb@    # passing parameter updates to the next iteration@\\
-\mbox{}\verb@    if (iter == 1) {@\\
-\mbox{}\verb@      startUpdates <- list(iter = iter,@\\
-\mbox{}\verb@                           f0StartValue = NULL,@\\
-\mbox{}\verb@                           thetaStartValue = NULL,@\\
-\mbox{}\verb@                           betaStartValue = NULL)@\\
-\mbox{}\verb@    } else {@\\
-\mbox{}\verb@      startUpdates <- list(iter = iter,@\\
-\mbox{}\verb@                           f0StartValue = referencef0Pre,@\\
-\mbox{}\verb@                           thetaStartValue = tiltingWsPre,@\\
-\mbox{}\verb@                           betaStartValue = betasPre)@\\
-\mbox{}\verb@    }@\\
-\mbox{}\verb@    # EM NR algorithm@\\
-\mbox{}\verb@    res <- gldrMaximize(DesignMatrix.CONST, CBData, referencef0Pre, tiltingWsPre, startUpdates)@\\
-\mbox{}\verb@    referencef0 <- res$density.ref @\\
-\mbox{}\verb@    # notice that this tilting parameter estimates are w.r.t the intermediate dataset, original dataset extended by max(cluster size)+1 times@\\
-\mbox{}\verb@    tiltingWs <- res$tiltParam[(0:(nrow(CBData)-1))*length(referencef0)+1]@\\
-\mbox{}\verb@    betas <- res$regressionEst@\\
-\mbox{}\verb@    # monitor parameter estimates for baseline distribution, tilting parameters, regression coefficients@\\
-\mbox{}\verb@    difference <- sum(abs(referencef0Pre - referencef0)) + sum(abs(betasPre - betas))@\\
-\mbox{}\verb@  }@\\
+\mbox{}\verb@  # convert fTiltMatrix to long vector, watching out for potentially different support@\\
+\mbox{}\verb@  y_idx <- match(Ycomb[,"y"], spt)@\\
+\mbox{}\verb@  fTilt2 <- ifelse(!is.na(y_idx), fTiltMatrix[cbind(Ycomb[,"i"], y_idx)], 0)@\\
 \mbox{}\verb@  @\\
-\mbox{}\verb@  list(referencef0 = referencef0,@\\
-\mbox{}\verb@       tiltingWs = tiltingWs,@\\
-\mbox{}\verb@       betas = betas,@\\
-\mbox{}\verb@       EMgldrmFitRes = res)@\\
+\mbox{}\verb@  # numerator of weights@\\
+\mbox{}\verb@  pp_num <- choose(n=Ycomb[,"y"], k=Ycomb[,"resp"]) * @\\
+\mbox{}\verb@           choose(n=N-Ycomb[,"y"], k=Ycomb[,"nonresp"]) * @\\
+\mbox{}\verb@           fTilt2@\\
+\mbox{}\verb@  # denominator @\\
+\mbox{}\verb@  pp_denom <- tapply(pp_num, list(i=Ycomb[,"i"]), sum, simplify=TRUE)@\\
+\mbox{}\verb@  pp <- c(pp_num / pp_denom[Ycomb[,"i"]])@\\
+\mbox{}\verb@  if (!is.null(weights)) pp <- weights2 * pp@\\
 \mbox{}\verb@@{\NWsep}
 \end{list}
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtMacroRefIn\ \NWlink{nuweb1}{1}.
+\item \NWtxtMacroRefIn\ \NWlink{nuweb3b}{3b}.
+
+\item{}
+\end{list}
+\vspace{4ex}
+\end{flushleft}
+\subsection{Maximization step}
+
+Equation \eqref{E:ExpectedlogLikelihoodCompleteMapFromObs} can be interpreted as the log-likelihood for the SPGLM with fixed cluster size $N$ for an expanded data set: each observation with cluster size $N_i$ and number of responses $y_i$ is expanded to $(N+1)$ replicates with $0, 1, \ldots, N$, responses, respectively. The probabilities $p_{N_iy_is_i}^{(k)}$ serve as cluster weights in the expanded data set. From here we can use a slight generalization of the Newton-Raphson algorithm developed by Wurm and Rathouz (2018) to estimate the baseline density distribution $ \boldsymbol{q}_N^{(0)} $ and the regression coefficients $\boldsymbol{\beta}$. 
+
+Default settings are used for the algorithm, except the starting values is updated based on the previous iteration
+
+\begin{flushleft} \small\label{scrap7}\raggedright\small
+\NWtarget{nuweb5b}{} $\langle\,${\itshape M-step}\nobreak\ {\footnotesize {5b}}$\,\rangle\equiv$
+\vspace{-1ex}
+\begin{list}{}{} \item
+\mbox{}\verb@@\\
+\mbox{}\verb@  gldrmControl0 <- gldrm.control(returnfTiltMatrix = TRUE, returnf0ScoreInfo = FALSE, print=FALSE,@\\
+\mbox{}\verb@                                betaStart = betasPre, f0Start = referencef0Pre)@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@  mod <- gldrmFit(x = mm2, y=Ycomb[,"y"]/N, linkfun=link$linkfun, linkinv = link$linkinv,@\\
+\mbox{}\verb@                  mu.eta = link$mu.eta, mu0 = mu0, offset = offset2, weights = pp, @\\
+\mbox{}\verb@                  gldrmControl = gldrmControl0,  thetaControl=theta.control(),@\\
+\mbox{}\verb@                  betaControl=beta.control(), f0Control=f0.control())@\\
+\mbox{}\verb@                  @\\
+\mbox{}\verb@  fTiltMatrix <- mod$fTiltMatrix@\\
+\mbox{}\verb@  betas <- mod$beta@\\
+\mbox{}\verb@  referencef0 <- mod$f0@\\
+\mbox{}\verb@  spt <- round(mod$spt * N)@\\
+\mbox{}\verb@@{\NWsep}
+\end{list}
+\vspace{-1.5ex}
+\footnotesize
+\begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
+\item \NWtxtMacroRefIn\ \NWlink{nuweb3b}{3b}.
+
+\item{}
+\end{list}
+\vspace{4ex}
+\end{flushleft}
+\subsection{Starting values}
+We start the regression coefficients are set to 0, so $q^{(0)}_N$ would be the overall estimate under marginally compatibility. The default value of \texttt{mu0} is set to the mean of $y_i/n_i$.
+
+\begin{flushleft} \small\label{scrap8}\raggedright\small
+\NWtarget{nuweb6}{} $\langle\,${\itshape Set starting values}\nobreak\ {\footnotesize {6}}$\,\rangle\equiv$
+\vspace{-1ex}
+\begin{list}{}{} \item
+\mbox{}\verb@@\\
+\mbox{}\verb@  N <- max(rowSums(Y))@\\
+\mbox{}\verb@  nobs <- nrow(mm)@\\
+\mbox{}\verb@  p <- ncol(mm)@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  betas <- rep(0, times= p)@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@  pooled <- CBData(data.frame(Trt = "All", NResp = Y[,1], ClusterSize = rowSums(Y), Freq=ceiling(weights)), @\\
+\mbox{}\verb@                    trt="Trt", clustersize="ClusterSize", nresp="NResp")@\\
+\mbox{}\verb@  est <- mc.est(pooled)@\\
+\mbox{}\verb@  referencef0 <- est$Prob[est$ClusterSize == N]@\\
+\mbox{}\verb@  # ensure all positive values@\\
+\mbox{}\verb@  referencef0 <- (referencef0 + 1e-6)/(1+(N+1)*1e-6)@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  fTiltMatrix <- matrix(rep(referencef0, times=nobs), byrow=TRUE, nrow=nobs, ncol=N+1)@\\
+\mbox{}\verb@  spt <- 0:N@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@  if (is.null(mu0))@\\
+\mbox{}\verb@    mu0 <- weighted.mean(Y[,1]/rowSums(Y), weights)@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@@{\NWsep}
+\end{list}
+\vspace{-1.5ex}
+\footnotesize
+\begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
+\item \NWtxtMacroRefIn\ \NWlink{nuweb3b}{3b}.
 
 \item{}
 \end{list}

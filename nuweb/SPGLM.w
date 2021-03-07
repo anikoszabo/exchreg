@@ -53,24 +53,23 @@ For the purpose of identifiability, the mean of marginal probability $\{ q_{y,N}
 #'@@param subset	an optional vector specifying a subset of observations to be used.
 #'@@param weight	an optional vector specifying observation weights.
 #'@@param link	  a link function for the mean.
-#'@@param start	  an optional list with elements named \code{beta}, \code{q}, and/or \code{mu1} giving starting values for estimation. If none or only some are specified, starting values are selected automatically.
+#'@@param mu0	  an optional numeric value constraining the mean of the baseline distribution
 #'@@param control	a list with parameters controlling the algorithm.
 #'@@return an object of class \code{spglm} with the fitted model.
 #'@@export
 #' @@importFrom stats terms model.matrix
 
-spglm <- function(formula, data, subset, weights, link="logit", start=NULL, control=list(eps=0.001, maxit=100), ...){
-    fam <- binomial(link=link)
-    
+spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL, 
+                  control=list(eps=0.001, maxit=100), ...){
+
     @< Create model matrix from formula and data@>
     @< Fit model@>
 
     mt <- attr(mf, "terms")
-    res <- list(coefficients = beta_new, q=q_new, niter = iter, loglik=logl,
+    res <- list(coefficients = betas, f0=referencef0, mu0=mu0, niter = iter, loglik=mod$llik,
                 link = link, call = mc, terms = mt,
                 xlevels = .getXlevels(mt, mf),
-                data_object=list(model_matrix=mm, resp=Y, n=rowSums(Y), weights=weights),
-                model_fun=model_fun)
+                data_object=list(model_matrix=mm, resp=Y, n=rowSums(Y), weights=weights, offset=offset))
     class(res) <- "spglm"
     res
 
@@ -85,7 +84,7 @@ spglm <- function(formula, data, subset, weights, link="logit", start=NULL, cont
    if (missing(data))
         data <- environment(formula)
     mc <- match.call(expand.dots = FALSE)
-    m <- match(c("formula", "data", "subset", "weights"), names(mc), 0L)
+    m <- match(c("formula", "data", "subset", "weights", "offset"), names(mc), 0L)
     m <- mc[c(1L,m)]
     if (is.matrix(eval(m$data, parent.frame())))
         m$data <- as.data.frame(data)
@@ -98,32 +97,94 @@ spglm <- function(formula, data, subset, weights, link="logit", start=NULL, cont
 
     # create model matrix
     mm <- model.matrix(formula, data=mf)
+    
+    if (is.character(link)) {
+      link <- stats::make.link(link)
+    }
+    else if (!is.list(link) || !(all(c("linkfun", "linkinv", 
+                                     "mu.eta") %in% names(link)))) {
+      stop(paste0("link should be a character string or a list containing ", 
+                "functions named linkfun, linkinv, and mu.eta"))
+    }
 
+    # extract offset
+    offset <- as.vector(model.offset(mf))
+    if (is.null(offset)) 
+      offset <- rep(0, nrow(mm))
+    
     # extract weights
     weights <- as.vector(model.weights(mf))
     if (!is.null(weights) && !is.numeric(weights))
         stop("'weights' must be a numeric vector")
     if (!is.null(weights) && any(weights < 0))
         stop("negative weights not allowed")
+     if (is.null(weights))
+        weights <- rep(1, nrow(mm))
 @}
 
 \section{EM algorithm for model fitting}
 We will combine an Expectation Maximization with the Newton-Raphson algorithm proposed by Rathouz and Gao (2009) to estimate the model parameters. Recall that the observed data consists of the number of events, cluster size, and cluster-level covariates: $(y_i, N_i, \boldsymbol{Z}_i)$, $i=1,\cdots,I$. 
 
-\subsubsection{Observed data log-likelihood}
+\subsection{Observed data log-likelihood}
 Under the marginal compatibility assumption, the observed log-likelihood function is:
 \begin{equation}\label{E:loglikelihood}
 \begin{split}
     \ell (q_{y,N}, \boldsymbol{\beta}) &= \sum_{i=1}^I \log \{ q_{y_i,N_i} (\boldsymbol{Z}_i, \boldsymbol{\beta}) \} \\
-    &= \sum_{i=1}^I \log \bigg[ \binom{N_i}{y_i} \sum_{t=y}^{N-N_i+y_i} \dfrac{\binom{N-N_i}{t-y_i}}{\binom{N}{Y_i}} \times \dfrac{q_{t,N}^{(0)} \times \exp \{ \omega(\boldsymbol{Z}_i; \boldsymbol{\beta}) t \}} {\sum_{t'=0}^{N} q_{t',N}^{(0)} \times \exp \{ \omega(\boldsymbol{Z}_i; \boldsymbol{\beta}) t' \}}  \bigg].
+    &= \sum_{i=1}^I \log \bigg[ \binom{N_i}{y_i} \sum_{t=y}^{N-N_i+y_i} \dfrac{\binom{N-N_i}{t-y_i}}{\binom{N}{t}} \times \dfrac{q_{t,N}^{(0)} \times \exp \{ \omega(\boldsymbol{Z}_i; \boldsymbol{\beta}) t \}} {\sum_{t'=0}^{N} q_{t',N}^{(0)} \times \exp \{ \omega(\boldsymbol{Z}_i; \boldsymbol{\beta}) t' \}}  \bigg].
 \end{split}
 \end{equation}
+
+\subsection{Model prediction and likelihood}
+We define internal function to calculate predicted values and the log-likelihood.
+
+@O ../R/SPGLM.R @{
+spglm_pred_mean <- function(beta, data_object, link){
+  eta <- c(data_object$model_matrix %*% beta + data_object$offset)
+  mu <- link$linkinv(eta)
+  mu
+}
+
+spglm_loglik <- function(beta, f0, data_object, link){
+  
+    mu <- spglm_pred_mean(beta=beta, data_object=data_object, link=link)
+    N <- max(data_object$n)
+    nobs <- nrow(data_object$model_matrix)
+    
+    # ySptIndex is only used to calculate the log-likelihood, which we will not be using
+    th <- getTheta(spt=(0:N)/N, f0=f0, mu=mu, weights=data_object$weights, ySptIndex=rep(1, nobs),
+                   thetaStart=NULL, thetaControl=theta.control())
+    
+    hp <- sapply(0:N, function(t)dhyper(x=data_object$resp[,1], m=data_object$n, n=N-data_object$n, k=t))   
+    llik_term <- rowSums(t(th$fTilt) * hp)
+    llik <- llik_term %*% data_object$weights
+    c(llik)
+}
+@}
 
 It is difficult to utilize the observed log-likelihood directly for parameter estimation. Its score function is complex because there is a logarithm of a sum in \eqref{E:loglikelihood}. Therefore, we implement an EM algorithm for parameter estimation.
 
 
+@D Fit model @{
+ @< Set starting values@>
+ @< Set up for E-step @>
+ 
+ iter <- 0
+ difference <- 100
+ while (iter < control$maxit & difference > control$eps) {
+    iter <- iter + 1
+    referencef0Pre <- referencef0
+    betasPre <- betas
+    
+    @< E-step @>
+    @< M-step @>
+    
+    difference <- sum(abs(referencef0Pre - referencef0)) + sum(abs(betasPre - betas))
+  }
+  
+@}
 
-\subsubsection{Missing data setup}
+
+\subsection{Missing data setup}
 Stefanescu et al (2003) have proved that the marginal compatibility assumption is equivalent to assuming that each cluster of size $N'$ arises from a cluster of maximal cluster size $N$ with some binary observations missing completely missing at random (MCAR). The missing data setup and the expectation step from EM algorithm are based on this MCAR interpretation. 
 
 For the setup of the EM algorithm, the complete data are clusters of size $N$ with a corresponding number of events $s_i$, where $s_i \in \{y_i, \cdots, N \}$. The missing data correspond to the unobserved outcomes in of the $(N - N_i)$ cluster components. The missing data can be summarized as $(s_i - y_i)$ events out of $(N - N_i)$ elements.
@@ -138,9 +199,28 @@ The complete data log-likelihood is:
 where $q_{s_i,N}$ is the probability of achieving $s_i$ events in a cluster of size $N$ in the complete data set. The $\mathds{1}$ denotes the indicator function.
 
 
+Equation \ref{E:logLikelihoodCompleteMapFromObs} can be interpreted as the log-likelihood of a model with fixed cluster size $N$ for an expanded data set: each observation with cluster size $N_i$ and number of responses $y_i$ is expanded to $(N+1)$ replicates with $0, 1, \ldots, N$, responses, respectively.
 
-\subsubsection{Expectation step}
-%For complete data in which all clusters have $N$ observations, the marginal probability of achieving $y$ events out of $N$ observations within a cluster is denoted with parameter $q_{y,N}$. 
+@D Set up for E-step @{
+  # replace each cluster with N+1 clusters of size N
+  new <- cbind(y=0:N)
+  rep_idx <- rep(1:nrow(Y), each=nrow(new))
+  Y2 <- cbind(1:nrow(Y), Y)[rep_idx,]
+  colnames(Y2) <- c("i", "resp","nonresp")
+
+  rep_idx2 <- rep(1:nrow(new), times=nrow(Y))
+  Ycomb <- cbind(Y2, new[rep_idx2, ,drop=FALSE])
+  # select possible combinations
+  possible <- (Ycomb[,"y"] >= Ycomb[,"resp"]) & (N-Ycomb[,"y"] >= Ycomb[,"nonresp"])
+  Ycomb <- Ycomb[possible,]
+ 
+  mm2 <- mm[Ycomb[,"i"], ,drop=FALSE]
+  weights2 <- weights[Ycomb[,"i"]]
+  offset2 <- offset[Ycomb[,"i"]]
+@}
+
+\subsection{Expectation step}
+
 We take the expectation of complete data log-likelihood \eqref{E:logLikelihoodCompleteMapFromObs} given parameters from the previous $k^{th}$ iteration, which is shown as follows:
 \begin{equation}\label{E:ExpectedlogLikelihoodCompleteMapFromObs}
 \begin{split}
@@ -159,49 +239,70 @@ p_{N'y'y} &= \textbf{Pr}_N(Y=y \mid Y'=y',N') \\
           &= \frac{\binom{y}{y'} \binom{N-y}{N'-y'} q_{y,N}}{\sum_{t=y'}^{N-N'+y'} \dbinom{t}{y'} \binom{N-t}{N'-y'} q_{t,N}},
 \end{split}
 \end{equation}
-and $p_{N_iy_is_i}^{(k)}$ at the $k$th step of the iteration can be obtained by using $q_{y,N}^{(k)}$ on the right-hand side of the expression.
+and $p_{N_iy_is_i}^{(k)}$ at the $k$th step of the iteration can be obtained by using $q_{y,N}^{(k)}$ on the right-hand side of the expression. 
+
+The value of $q_{y,N}^{(k)}((\boldsymbol{Z}_i; \boldsymbol{\beta}^{(k)})$ can be obtained from ${q_{y,N}^{(0)}}^{(k)}$ using \ref{M:densitySPGLM}. But it is also returned by \texttt{gldrmFit} as \texttt{fTiltMatrix}.
 
 
+@D E-step @{
+  # convert fTiltMatrix to long vector, watching out for potentially different support
+  y_idx <- match(Ycomb[,"y"], spt)
+  fTilt2 <- ifelse(!is.na(y_idx), fTiltMatrix[cbind(Ycomb[,"i"], y_idx)], 0)
+  
+  # numerator of weights
+  pp_num <- choose(n=Ycomb[,"y"], k=Ycomb[,"resp"]) * 
+           choose(n=N-Ycomb[,"y"], k=Ycomb[,"nonresp"]) * 
+           fTilt2
+  # denominator 
+  pp_denom <- tapply(pp_num, list(i=Ycomb[,"i"]), sum, simplify=TRUE)
+  pp <- c(pp_num / pp_denom[Ycomb[,"i"]])
+  if (!is.null(weights)) pp <- weights2 * pp
+@}
 
-
-\subsubsection{Maximization step}
+\subsection{Maximization step}
 
 Equation \eqref{E:ExpectedlogLikelihoodCompleteMapFromObs} can be interpreted as the log-likelihood for the SPGLM with fixed cluster size $N$ for an expanded data set: each observation with cluster size $N_i$ and number of responses $y_i$ is expanded to $(N+1)$ replicates with $0, 1, \ldots, N$, responses, respectively. The probabilities $p_{N_iy_is_i}^{(k)}$ serve as cluster weights in the expanded data set. From here we can use a slight generalization of the Newton-Raphson algorithm developed by Wurm and Rathouz (2018) to estimate the baseline density distribution $ \boldsymbol{q}_N^{(0)} $ and the regression coefficients $\boldsymbol{\beta}$. 
 
+Default settings are used for the algorithm, except the starting values is updated based on the previous iteration
 
-@D Fit model @{
- while (iter < control$maxit & difference > control$eps) {
-    iter <- iter + 1
-    referencef0Pre <- referencef0
-    tiltingWsPre <- tiltingWs
-    betasPre <- betas
-    # passing parameter updates to the next iteration
-    if (iter == 1) {
-      startUpdates <- list(iter = iter,
-                           f0StartValue = NULL,
-                           thetaStartValue = NULL,
-                           betaStartValue = NULL)
-    } else {
-      startUpdates <- list(iter = iter,
-                           f0StartValue = referencef0Pre,
-                           thetaStartValue = tiltingWsPre,
-                           betaStartValue = betasPre)
-    }
-    # EM NR algorithm
-    res <- gldrMaximize(DesignMatrix.CONST, CBData, referencef0Pre, tiltingWsPre, startUpdates)
-    referencef0 <- res$density.ref 
-    # notice that this tilting parameter estimates are w.r.t the intermediate dataset, original dataset extended by max(cluster size)+1 times
-    tiltingWs <- res$tiltParam[(0:(nrow(CBData)-1))*length(referencef0)+1]
-    betas <- res$regressionEst
-    # monitor parameter estimates for baseline distribution, tilting parameters, regression coefficients
-    difference <- sum(abs(referencef0Pre - referencef0)) + sum(abs(betasPre - betas))
-  }
-  
-  list(referencef0 = referencef0,
-       tiltingWs = tiltingWs,
-       betas = betas,
-       EMgldrmFitRes = res)
+@D M-step @{
+  gldrmControl0 <- gldrm.control(returnfTiltMatrix = TRUE, returnf0ScoreInfo = FALSE, print=FALSE,
+                                betaStart = betasPre, f0Start = referencef0Pre)
+
+  mod <- gldrmFit(x = mm2, y=Ycomb[,"y"]/N, linkfun=link$linkfun, linkinv = link$linkinv,
+                  mu.eta = link$mu.eta, mu0 = mu0, offset = offset2, weights = pp, 
+                  gldrmControl = gldrmControl0,  thetaControl=theta.control(),
+                  betaControl=beta.control(), f0Control=f0.control())
+                  
+  fTiltMatrix <- mod$fTiltMatrix
+  betas <- mod$beta
+  referencef0 <- mod$f0
+  spt <- round(mod$spt * N)
 @}
 
+\subsection{Starting values}
+We start the regression coefficients are set to 0, so $q^{(0)}_N$ would be the overall estimate under marginally compatibility. The default value of \texttt{mu0} is set to the mean of $y_i/n_i$.
+
+@D Set starting values @{
+  N <- max(rowSums(Y))
+  nobs <- nrow(mm)
+  p <- ncol(mm)
+  
+  betas <- rep(0, times= p)
+
+  pooled <- CBData(data.frame(Trt = "All", NResp = Y[,1], ClusterSize = rowSums(Y), Freq=ceiling(weights)), 
+                    trt="Trt", clustersize="ClusterSize", nresp="NResp")
+  est <- mc.est(pooled)
+  referencef0 <- est$Prob[est$ClusterSize == N]
+  # ensure all positive values
+  referencef0 <- (referencef0 + 1e-6)/(1+(N+1)*1e-6)
+  
+  fTiltMatrix <- matrix(rep(referencef0, times=nobs), byrow=TRUE, nrow=nobs, ncol=N+1)
+  spt <- 0:N
+
+  if (is.null(mu0))
+    mu0 <- weighted.mean(Y[,1]/rowSums(Y), weights)
+  
+@}
 
 \end{document}

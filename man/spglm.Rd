@@ -9,8 +9,9 @@ spglm(
   data,
   subset,
   weights,
+  offset,
   link = "logit",
-  start = NULL,
+  mu0 = NULL,
   control = list(eps = 0.001, maxit = 100),
   ...
 )
@@ -24,7 +25,7 @@ spglm(
 
 \item{link}{a link function for the mean.}
 
-\item{start}{an optional list with elements named \code{beta}, \code{q}, and/or \code{mu1} giving starting values for estimation. If none or only some are specified, starting values are selected automatically.}
+\item{mu0}{an optional numeric value constraining the mean of the baseline distribution}
 
 \item{control}{a list with parameters controlling the algorithm.}
 
