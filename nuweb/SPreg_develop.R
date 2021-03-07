@@ -28,15 +28,28 @@ load_all(ex)
 ## test SPGLM
 data(boric_acid)
 m <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, data=boric_acid, link="logit",
-           weights=boric_acid$Freq)
+           weights=boric_acid$Freq, control = list(eps=1e-6, maxit=1000))
 
 ba2 <- boric_acid[rep(1:nrow(boric_acid), boric_acid$Freq),]
-m2 <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, data=ba2, link="logit")
+m2 <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, data=ba2, link="logit", control = list(eps=1e-6, maxit=1000))
 
 all.equal(coef(m), coef(m2))
+all.equal(m$loglik, m2$loglik)
 
 a <- spglm_pred_mean(m$coefficients, m$data_object, m$link)
 b <- spglm_loglik(beta=m$coefficients, f0=m$f0, m$data_object, m$link)
+b2 <- spglm_loglik(beta=m2$coefficients, f0=m2$f0, m$data_object, m$link)
+
+# Hessian matrix calculation
+library(numDeriv)
+my_ll <- function(x, data_object, link){
+  p <- ncol(data_object$model_matrix)
+  spglm_loglik(beta=x[1:p], f0 = exp(x[-(1:p)]), data_object, link)
+}
+hess <- hessian(func= my_ll,  x=c(coef(m), log(m$f0)), data_object=m$data_object, link=m$link)
+# inverse of Hessian matrix == Fisher information (used for SE estimation) for regression coefficients
+fish <- solve(-hess)
+
 
 ######### Testing wGLDRM
 run_gldrm <- 

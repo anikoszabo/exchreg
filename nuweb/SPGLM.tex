@@ -85,7 +85,7 @@ For the purpose of identifiability, the mean of marginal probability $\{ q_{y,N}
 \mbox{}\verb@    @\hbox{$\langle\,${\itshape Fit model}\nobreak\ {\footnotesize \NWlink{nuweb3b}{3b}}$\,\rangle$}\verb@@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@    mt <- attr(mf, "terms")@\\
-\mbox{}\verb@    res <- list(coefficients = betas, f0=referencef0, mu0=mu0, niter = iter, loglik=mod$llik,@\\
+\mbox{}\verb@    res <- list(coefficients = betas, f0=referencef0, mu0=mu0, niter = iter, loglik=llik,@\\
 \mbox{}\verb@                link = link, call = mc, terms = mt,@\\
 \mbox{}\verb@                xlevels = .getXlevels(mt, mf),@\\
 \mbox{}\verb@                data_object=list(model_matrix=mm, resp=Y, n=rowSums(Y), weights=weights, offset=offset))@\\
@@ -221,7 +221,7 @@ It is difficult to utilize the observed log-likelihood directly for parameter es
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
-\mbox{}\verb@ @\hbox{$\langle\,${\itshape Set starting values}\nobreak\ {\footnotesize \NWlink{nuweb6}{6}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@ @\hbox{$\langle\,${\itshape Set starting values}\nobreak\ {\footnotesize \NWlink{nuweb6b}{6b}}$\,\rangle$}\verb@@\\
 \mbox{}\verb@ @\hbox{$\langle\,${\itshape Set up for E-step}\nobreak\ {\footnotesize \NWlink{nuweb4}{4}}$\,\rangle$}\verb@@\\
 \mbox{}\verb@ @\\
 \mbox{}\verb@ iter <- 0@\\
@@ -230,11 +230,12 @@ It is difficult to utilize the observed log-likelihood directly for parameter es
 \mbox{}\verb@    iter <- iter + 1@\\
 \mbox{}\verb@    referencef0Pre <- referencef0@\\
 \mbox{}\verb@    betasPre <- betas@\\
+\mbox{}\verb@    llikPre <- llik@\\
 \mbox{}\verb@    @\\
-\mbox{}\verb@    @\hbox{$\langle\,${\itshape E-step}\nobreak\ {\footnotesize \NWlink{nuweb5a}{5a}}$\,\rangle$}\verb@@\\
-\mbox{}\verb@    @\hbox{$\langle\,${\itshape M-step}\nobreak\ {\footnotesize \NWlink{nuweb5b}{5b}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@    @\hbox{$\langle\,${\itshape E-step}\nobreak\ {\footnotesize \NWlink{nuweb5}{5}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@    @\hbox{$\langle\,${\itshape M-step}\nobreak\ {\footnotesize \NWlink{nuweb6a}{6a}}$\,\rangle$}\verb@@\\
 \mbox{}\verb@    @\\
-\mbox{}\verb@    difference <- sum(abs(referencef0Pre - referencef0)) + sum(abs(betasPre - betas))@\\
+\mbox{}\verb@    difference <- abs(llik - llikPre)@\\
 \mbox{}\verb@  }@\\
 \mbox{}\verb@  @\\
 \mbox{}\verb@@{\NWsep}
@@ -281,6 +282,8 @@ Equation \ref{E:logLikelihoodCompleteMapFromObs} can be interpreted as the log-l
 \mbox{}\verb@  # select possible combinations@\\
 \mbox{}\verb@  possible <- (Ycomb[,"y"] >= Ycomb[,"resp"]) & (N-Ycomb[,"y"] >= Ycomb[,"nonresp"])@\\
 \mbox{}\verb@  Ycomb <- Ycomb[possible,]@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  obs_start <- match(1:nobs, Ycomb[,"i"])@\\
 \mbox{}\verb@ @\\
 \mbox{}\verb@  mm2 <- mm[Ycomb[,"i"], ,drop=FALSE]@\\
 \mbox{}\verb@  weights2 <- weights[Ycomb[,"i"]]@\\
@@ -322,7 +325,7 @@ The value of $q_{y,N}^{(k)}((\boldsymbol{Z}_i; \boldsymbol{\beta}^{(k)})$ can be
 
 
 \begin{flushleft} \small\label{scrap6}\raggedright\small
-\NWtarget{nuweb5a}{} $\langle\,${\itshape E-step}\nobreak\ {\footnotesize {5a}}$\,\rangle\equiv$
+\NWtarget{nuweb5}{} $\langle\,${\itshape E-step}\nobreak\ {\footnotesize {5}}$\,\rangle\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -356,7 +359,7 @@ Equation \eqref{E:ExpectedlogLikelihoodCompleteMapFromObs} can be interpreted as
 Default settings are used for the algorithm, except the starting values is updated based on the previous iteration
 
 \begin{flushleft} \small\label{scrap7}\raggedright\small
-\NWtarget{nuweb5b}{} $\langle\,${\itshape M-step}\nobreak\ {\footnotesize {5b}}$\,\rangle\equiv$
+\NWtarget{nuweb6a}{} $\langle\,${\itshape M-step}\nobreak\ {\footnotesize {6a}}$\,\rangle\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -368,10 +371,11 @@ Default settings are used for the algorithm, except the starting values is updat
 \mbox{}\verb@                  gldrmControl = gldrmControl0,  thetaControl=theta.control(),@\\
 \mbox{}\verb@                  betaControl=beta.control(), f0Control=f0.control())@\\
 \mbox{}\verb@                  @\\
-\mbox{}\verb@  fTiltMatrix <- mod$fTiltMatrix@\\
+\mbox{}\verb@  fTiltMatrix <- mod$fTiltMatrix[obs_start,]@\\
 \mbox{}\verb@  betas <- mod$beta@\\
 \mbox{}\verb@  referencef0 <- mod$f0@\\
 \mbox{}\verb@  spt <- round(mod$spt * N)@\\
+\mbox{}\verb@  llik <- c(rowSums(fTiltMatrix * hp) %*% weights)@\\
 \mbox{}\verb@@{\NWsep}
 \end{list}
 \vspace{-1.5ex}
@@ -387,7 +391,7 @@ Default settings are used for the algorithm, except the starting values is updat
 We start the regression coefficients are set to 0, so $q^{(0)}_N$ would be the overall estimate under marginally compatibility. The default value of \texttt{mu0} is set to the mean of $y_i/n_i$.
 
 \begin{flushleft} \small\label{scrap8}\raggedright\small
-\NWtarget{nuweb6}{} $\langle\,${\itshape Set starting values}\nobreak\ {\footnotesize {6}}$\,\rangle\equiv$
+\NWtarget{nuweb6b}{} $\langle\,${\itshape Set starting values}\nobreak\ {\footnotesize {6b}}$\,\rangle\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -395,8 +399,7 @@ We start the regression coefficients are set to 0, so $q^{(0)}_N$ would be the o
 \mbox{}\verb@  nobs <- nrow(mm)@\\
 \mbox{}\verb@  p <- ncol(mm)@\\
 \mbox{}\verb@  @\\
-\mbox{}\verb@  betas <- rep(0, times= p)@\\
-\mbox{}\verb@@\\
+\mbox{}\verb@  betas <- NULL@\\
 \mbox{}\verb@  pooled <- CBData(data.frame(Trt = "All", NResp = Y[,1], ClusterSize = rowSums(Y), Freq=ceiling(weights)), @\\
 \mbox{}\verb@                    trt="Trt", clustersize="ClusterSize", nresp="NResp")@\\
 \mbox{}\verb@  est <- mc.est(pooled)@\\
@@ -410,6 +413,12 @@ We start the regression coefficients are set to 0, so $q^{(0)}_N$ would be the o
 \mbox{}\verb@  if (is.null(mu0))@\\
 \mbox{}\verb@    mu0 <- weighted.mean(Y[,1]/rowSums(Y), weights)@\\
 \mbox{}\verb@  @\\
+\mbox{}\verb@  # hypergeometric terms for log-likelihood calculation@\\
+\mbox{}\verb@  hp <- sapply(0:N, function(t)dhyper(x=Y[,1], m=rowSums(Y), n=N-rowSums(Y), k=t))   @\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  # initial log-likelihood@\\
+\mbox{}\verb@  llik <- rowSums(fTiltMatrix * hp) %*% weights@\\
+\mbox{}\verb@@\\
 \mbox{}\verb@@{\NWsep}
 \end{list}
 \vspace{-1.5ex}

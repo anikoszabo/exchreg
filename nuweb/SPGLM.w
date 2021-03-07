@@ -66,7 +66,7 @@ spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL
     @< Fit model@>
 
     mt <- attr(mf, "terms")
-    res <- list(coefficients = betas, f0=referencef0, mu0=mu0, niter = iter, loglik=mod$llik,
+    res <- list(coefficients = betas, f0=referencef0, mu0=mu0, niter = iter, loglik=llik,
                 link = link, call = mc, terms = mt,
                 xlevels = .getXlevels(mt, mf),
                 data_object=list(model_matrix=mm, resp=Y, n=rowSums(Y), weights=weights, offset=offset))
@@ -174,11 +174,12 @@ It is difficult to utilize the observed log-likelihood directly for parameter es
     iter <- iter + 1
     referencef0Pre <- referencef0
     betasPre <- betas
+    llikPre <- llik
     
     @< E-step @>
     @< M-step @>
     
-    difference <- sum(abs(referencef0Pre - referencef0)) + sum(abs(betasPre - betas))
+    difference <- abs(llik - llikPre)
   }
   
 @}
@@ -213,6 +214,8 @@ Equation \ref{E:logLikelihoodCompleteMapFromObs} can be interpreted as the log-l
   # select possible combinations
   possible <- (Ycomb[,"y"] >= Ycomb[,"resp"]) & (N-Ycomb[,"y"] >= Ycomb[,"nonresp"])
   Ycomb <- Ycomb[possible,]
+  
+  obs_start <- match(1:nobs, Ycomb[,"i"])
  
   mm2 <- mm[Ycomb[,"i"], ,drop=FALSE]
   weights2 <- weights[Ycomb[,"i"]]
@@ -274,10 +277,11 @@ Default settings are used for the algorithm, except the starting values is updat
                   gldrmControl = gldrmControl0,  thetaControl=theta.control(),
                   betaControl=beta.control(), f0Control=f0.control())
                   
-  fTiltMatrix <- mod$fTiltMatrix
+  fTiltMatrix <- mod$fTiltMatrix[obs_start,]
   betas <- mod$beta
   referencef0 <- mod$f0
   spt <- round(mod$spt * N)
+  llik <- c(rowSums(fTiltMatrix * hp) %*% weights)
 @}
 
 \subsection{Starting values}
@@ -288,8 +292,7 @@ We start the regression coefficients are set to 0, so $q^{(0)}_N$ would be the o
   nobs <- nrow(mm)
   p <- ncol(mm)
   
-  betas <- rep(0, times= p)
-
+  betas <- NULL
   pooled <- CBData(data.frame(Trt = "All", NResp = Y[,1], ClusterSize = rowSums(Y), Freq=ceiling(weights)), 
                     trt="Trt", clustersize="ClusterSize", nresp="NResp")
   est <- mc.est(pooled)
@@ -303,6 +306,12 @@ We start the regression coefficients are set to 0, so $q^{(0)}_N$ would be the o
   if (is.null(mu0))
     mu0 <- weighted.mean(Y[,1]/rowSums(Y), weights)
   
+  # hypergeometric terms for log-likelihood calculation
+  hp <- sapply(0:N, function(t)dhyper(x=Y[,1], m=rowSums(Y), n=N-rowSums(Y), k=t))   
+  
+  # initial log-likelihood
+  llik <- rowSums(fTiltMatrix * hp) %*% weights
+
 @}
 
 \end{document}
