@@ -14,6 +14,7 @@ boric_acid <- CorrBin::read.CBData("z:/EOGeorge/Data/Binary/BoricAcidMousedata_p
                   sep=",", skip=1)
 use_data(boric_acid)
 
+#############
 ex <- as.package("../exchreg")
 nuweb(ex)
 

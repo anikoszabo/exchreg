@@ -67,7 +67,7 @@ spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL
        
        betas <- NULL
        pooled <- CBData(data.frame(Trt = "All", NResp = Y[,1], ClusterSize = rowSums(Y), Freq=ceiling(weights)), 
-                         trt="Trt", clustersize="ClusterSize", nresp="NResp")
+                         trt="Trt", clustersize="ClusterSize", nresp="NResp", freq="Freq")
        est <- mc.est(pooled)
        referencef0 <- est$Prob[est$ClusterSize == N]
        # ensure all positive values

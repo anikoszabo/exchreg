@@ -504,9 +504,13 @@ For $q$, we will get the marginally compatible estimate for the pooled dataset, 
  }
  
  if (is.null(start$q)){
-    pooled <- CBData(data.frame(Trt = "All", NResp = Y[,1], ClusterSize = rowSums(Y)), trt="Trt",
-                     clustersize="ClusterSize", nresp="NResp")
-    est <- mc.est(pooled)
+    if (is.null(weights))       
+      pooled <- CBData(data.frame(Trt = "All", NResp = Y[,1], ClusterSize = rowSums(Y)), trt="Trt",
+                       clustersize="ClusterSize", nresp="NResp")
+    else                       
+       pooled <- CBData(data.frame(Trt = "All", NResp = Y[,1], ClusterSize = rowSums(Y), Freq=ceiling(weights)), 
+                        trt="Trt", clustersize="ClusterSize", nresp="NResp", freq="Freq")
+   est <- mc.est(pooled)
     q0 <- est$Prob[est$ClusterSize == N]
     if (is.null(mu1) && is.null(start$mu1))
         q_new <- mean_constrained_probs(pmax(q0, 0.01))
