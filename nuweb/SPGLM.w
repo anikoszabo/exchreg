@@ -155,7 +155,7 @@ spglm_loglik <- function(beta, f0, data_object, link){
                    thetaStart=NULL, thetaControl=theta.control())
     
     hp <- sapply(0:N, function(t)dhyper(x=data_object$resp[,1], m=data_object$n, n=N-data_object$n, k=t))   
-    llik_term <- rowSums(t(th$fTilt) * hp)
+    llik_term <- log(rowSums(t(th$fTilt) * hp))
     llik <- llik_term %*% data_object$weights
     c(llik)
 }
@@ -281,7 +281,7 @@ Default settings are used for the algorithm, except the starting values is updat
   betas <- mod$beta
   referencef0 <- mod$f0
   spt <- round(mod$spt * N)
-  llik <- c(rowSums(fTiltMatrix * hp) %*% weights)
+  llik <- c(log(rowSums(fTiltMatrix * hp)) %*% weights)
 @}
 
 \subsection{Starting values}
@@ -310,7 +310,7 @@ We start the regression coefficients are set to 0, so $q^{(0)}_N$ would be the o
   hp <- sapply(0:N, function(t)dhyper(x=Y[,1], m=rowSums(Y), n=N-rowSums(Y), k=t))   
   
   # initial log-likelihood
-  llik <- rowSums(fTiltMatrix * hp) %*% weights
+  llik <- log(rowSums(fTiltMatrix * hp)) %*% weights
 
 @}
 

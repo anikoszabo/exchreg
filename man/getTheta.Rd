@@ -48,14 +48,6 @@ observation, i.e. f(y|X=x). Each column corresponds to an observation and sums t
 for each observation. Should match \code{mu} argument very closely.
 \item \code{bPrime2} Vector containing the variance of the exponentially tilted
 distribution for each observation.
-\item \code{fTiltSW} Matrix containing the exponentially tilted distribution for each
-observation, conditional on that observation being sampled, i.e. f(y|X=x, S=1).
-If \code{sampprobs=NULL}, then \code{fTiltSW} matches \code{fTilt}.
-\item \code{bPrimeSW} Vector containing the mean for each observation, conditional
-on that observation being sampled. If \code{sampprobs=NULL}, then \code{bPrimeSW}
-matches \code{bPrime}.
-\item \code{bPrime2SW} Vector containing the variance for each observation, conditional
-on that observation being sampled. If \code{sampprobs=NULL}, then \code{bPrime2SW}
 matches \code{bPrime2}.
 \item \code{llik} Semiparametric log-likelihood, evaluated at the current beta
 and f0 values. If sampling weights are used, then the log-likelihood is conditional

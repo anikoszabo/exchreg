@@ -42,14 +42,25 @@ b2 <- spglm_loglik(beta=m2$coefficients, f0=m2$f0, m$data_object, m$link)
 
 # Hessian matrix calculation
 library(numDeriv)
-my_ll <- function(x, data_object, link){
+my_ll <- function(x, data_object, link, mu0){
   p <- ncol(data_object$model_matrix)
-  spglm_loglik(beta=x[1:p], f0 = exp(x[-(1:p)]), data_object, link)
+  f <- exp(x[-(1:p)])
+  spglm_loglik(beta=x[1:p], f0 = f, data_object, link)
 }
-hess <- hessian(func= my_ll,  x=c(coef(m), log(m$f0)), data_object=m$data_object, link=m$link)
-# inverse of Hessian matrix == Fisher information (used for SE estimation) for regression coefficients
-fish <- solve(-hess)
 
+hess <- hessian(func= my_ll,  x=c(coef(m), log(m$f0)), data_object=m$data_object, link=m$link,
+                mu0 = m$mu0)
+grad <- c(rep(1,length(coef(m))), 1/m$f0[-zf_idx])
+hess1 <- diag(grad) %*% hess %*% diag(grad)
+# inverse of Hessian matrix == variance-covariance matri (used for SE estimation) for regression coefficients
+vc <- solve(-hess1)
+sqrt(diag(vc))[1:4]
+
+# fix f0
+hess0 <- hessian(func= spglm_loglik,  x=coef(m),f0=m$f0, data_object=m$data_object, link=m$link)
+# inverse of Hessian matrix == Fisher information (used for SE estimation) for regression coefficients
+fish0 <- solve(-hess0)
+sqrt(diag(fish0))
 
 ######### Testing wGLDRM
 run_gldrm <- 

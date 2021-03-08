@@ -198,7 +198,7 @@ We define internal function to calculate predicted values and the log-likelihood
 \mbox{}\verb@                   thetaStart=NULL, thetaControl=theta.control())@\\
 \mbox{}\verb@    @\\
 \mbox{}\verb@    hp <- sapply(0:N, function(t)dhyper(x=data_object$resp[,1], m=data_object$n, n=N-data_object$n, k=t))   @\\
-\mbox{}\verb@    llik_term <- rowSums(t(th$fTilt) * hp)@\\
+\mbox{}\verb@    llik_term <- log(rowSums(t(th$fTilt) * hp))@\\
 \mbox{}\verb@    llik <- llik_term %*% data_object$weights@\\
 \mbox{}\verb@    c(llik)@\\
 \mbox{}\verb@}@\\
@@ -375,7 +375,7 @@ Default settings are used for the algorithm, except the starting values is updat
 \mbox{}\verb@  betas <- mod$beta@\\
 \mbox{}\verb@  referencef0 <- mod$f0@\\
 \mbox{}\verb@  spt <- round(mod$spt * N)@\\
-\mbox{}\verb@  llik <- c(rowSums(fTiltMatrix * hp) %*% weights)@\\
+\mbox{}\verb@  llik <- c(log(rowSums(fTiltMatrix * hp)) %*% weights)@\\
 \mbox{}\verb@@{\NWsep}
 \end{list}
 \vspace{-1.5ex}
@@ -417,7 +417,7 @@ We start the regression coefficients are set to 0, so $q^{(0)}_N$ would be the o
 \mbox{}\verb@  hp <- sapply(0:N, function(t)dhyper(x=Y[,1], m=rowSums(Y), n=N-rowSums(Y), k=t))   @\\
 \mbox{}\verb@  @\\
 \mbox{}\verb@  # initial log-likelihood@\\
-\mbox{}\verb@  llik <- rowSums(fTiltMatrix * hp) %*% weights@\\
+\mbox{}\verb@  llik <- log(rowSums(fTiltMatrix * hp)) %*% weights@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@@{\NWsep}
 \end{list}

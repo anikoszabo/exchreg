@@ -418,14 +418,6 @@ theta.control <- function(eps=1e-10, maxiter=100, maxhalf=20, maxtheta=500,
 #' for each observation. Should match \code{mu} argument very closely.
 #' \item \code{bPrime2} Vector containing the variance of the exponentially tilted
 #' distribution for each observation.
-#' \item \code{fTiltSW} Matrix containing the exponentially tilted distribution for each
-#' observation, conditional on that observation being sampled, i.e. f(y|X=x, S=1).
-#' If \code{sampprobs=NULL}, then \code{fTiltSW} matches \code{fTilt}.
-#' \item \code{bPrimeSW} Vector containing the mean for each observation, conditional
-#' on that observation being sampled. If \code{sampprobs=NULL}, then \code{bPrimeSW}
-#' matches \code{bPrime}.
-#' \item \code{bPrime2SW} Vector containing the variance for each observation, conditional
-#' on that observation being sampled. If \code{sampprobs=NULL}, then \code{bPrime2SW}
 #' matches \code{bPrime2}.
 #' \item \code{llik} Semiparametric log-likelihood, evaluated at the current beta
 #' and f0 values. If sampling weights are used, then the log-likelihood is conditional
@@ -565,18 +557,11 @@ getTheta <- function(spt, f0, mu, weights, ySptIndex, thetaStart=NULL, thetaCont
     }
 
 
-    fTiltSW <- fTilt
-    bPrimeSW <- bPrime
-    bPrime2SW <- bPrime2
-  
-
     ## Calculate log-likelihood
-   # llik <- sum(log(fTiltSW[cbind(ySptIndex, seq_along(ySptIndex))]))
-    fTiltSW.extracted <- fTiltSW[cbind(ySptIndex, seq_along(ySptIndex))]
-    llik <- sum(weights[fTiltSW.extracted>0] * log(fTiltSW.extracted[fTiltSW.extracted>0]))
+    fTilt.extracted <- fTilt[cbind(ySptIndex, seq_along(ySptIndex))]
+    llik <- sum(weights[fTilt.extracted>0] * log(fTilt.extracted[fTilt.extracted>0]))
  
     list(theta=theta, fTilt=fTilt, bPrime=bPrime, bPrime2=bPrime2,
-         fTiltSW=fTiltSW, bPrimeSW=bPrimeSW, bPrime2SW=bPrime2SW,
          llik=llik, conv=conv, iter=iter)
 }
 @}
@@ -669,23 +654,23 @@ getf0 <- function(y, spt, ySptIndex, weights, sptFreq.weighted, mu, mu0, f0Start
         # Score calculation
         score.logOld <- score.log
         
-        fTiltSWSums <- rowSums(th$fTiltSW)
-        fTiltSWSumsWeighted <- apply(th$fTiltSW, MARGIN=1, function(x) sum(weights * x)) 
-        smmfTiltSW <- smm * th$fTiltSW
-        ystd <- ymm / th$bPrime2SW
+        fTiltSums <- rowSums(th$fTilt)
+        fTiltSumsWeighted <- apply(th$fTilt, MARGIN=1, function(x) sum(weights * x)) 
+        smmfTilt <- smm * th$fTilt
+        ystd <- ymm / th$bPrime2
         ystdWeighted <- weights * ystd
         ystd[yeqmu] <- 0  # prevent 0/0
         ystdWeighted[yeqmu] <- 0  # prevent 0/0
     
 
         score.logT1 <- sptFreq.weighted
-        score.logT2 <- fTiltSWSumsWeighted
-        score.logT3 <- c(smmfTiltSW %*% ystdWeighted)
+        score.logT2 <- fTiltSumsWeighted
+        score.logT3 <- c(smmfTilt %*% ystdWeighted)
         score.log <- score.logT1 - score.logT2 - score.logT3
 
         # Inverse info, score step, and f0 step are on the log scale (score is not)
         if (iter == 1) {
-            d1 <- min(fTiltSWSumsWeighted)  # max inverse diagonal of first information term, on log scale
+            d1 <- min(fTiltSumsWeighted)  # max inverse diagonal of first information term, on log scale
             d2 <- max(abs(score.log)) / maxlogstep
             d <- max(d1, d2)
             infoinvBFGS.log <- diag(1/d, nrow=length(f0))
@@ -780,28 +765,28 @@ getf0 <- function(y, spt, ySptIndex, weights, sptFreq.weighted, mu, mu0, f0Start
     }
 
     # Final score calculation
-        smm <- outer(spt, th$bPrimeSW, "-")
-        ymm <- y - th$bPrimeSW
+        smm <- outer(spt, th$bPrime, "-")
+        ymm <- y - th$bPrime
         yeqmu <- which(abs(ymm) < 1e-15)
         
-          fTiltSWSums <- rowSums(th$fTiltSW)
-  fTiltSWSumsWeighted <- apply(th$fTiltSW, MARGIN=1, function(x) sum(weights * x)) 
-  smmfTiltSW <- smm * th$fTiltSW
-  ystd <- ymm / th$bPrime2SW
+          fTiltSums <- rowSums(th$fTilt)
+  fTiltSumsWeighted <- apply(th$fTilt, MARGIN=1, function(x) sum(weights * x)) 
+  smmfTilt <- smm * th$fTilt
+  ystd <- ymm / th$bPrime2
   ystdWeighted <- weights * ystd
   ystd[yeqmu] <- 0  # prevent 0/0
   ystdWeighted[yeqmu] <- 0  # prevent 0/0
   ystd[yeqmu] <- 0  # prevent 0/0
   
   score.logT1 <- sptFreq.weighted
-  score.logT2 <- fTiltSWSumsWeighted
-  score.logT3 <- c(smmfTiltSW %*% ystdWeighted)
+  score.logT2 <- fTiltSumsWeighted
+  score.logT3 <- c(smmfTilt %*% ystdWeighted)
   score.log <- score.logT1 - score.logT2 - score.logT3
   
   # Final info calculation
-  info.logT1 <- diag(fTiltSWSumsWeighted)
-  info.logT2 <- tcrossprod(th$fTiltSW)
-  info.logT3 <- tcrossprod(smmfTiltSW, smmfTiltSW * rep(ystdWeighted, each=nrow(smmfTiltSW)))
+  info.logT1 <- diag(fTiltSumsWeighted)
+  info.logT2 <- tcrossprod(th$fTilt)
+  info.logT3 <- tcrossprod(smmfTilt, smmfTilt * rep(ystdWeighted, each=nrow(smmfTilt)))
   info.log <- info.logT1 - info.logT2 - info.logT3
   
 

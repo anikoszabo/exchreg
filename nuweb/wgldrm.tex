@@ -461,14 +461,6 @@ The code is based on the \texttt{gldrm} package, with minor changes to incorpora
 \mbox{}\verb@#' for each observation. Should match \code{mu} argument very closely.@\\
 \mbox{}\verb@#' \item \code{bPrime2} Vector containing the variance of the exponentially tilted@\\
 \mbox{}\verb@#' distribution for each observation.@\\
-\mbox{}\verb@#' \item \code{fTiltSW} Matrix containing the exponentially tilted distribution for each@\\
-\mbox{}\verb@#' observation, conditional on that observation being sampled, i.e. f(y|X=x, S=1).@\\
-\mbox{}\verb@#' If \code{sampprobs=NULL}, then \code{fTiltSW} matches \code{fTilt}.@\\
-\mbox{}\verb@#' \item \code{bPrimeSW} Vector containing the mean for each observation, conditional@\\
-\mbox{}\verb@#' on that observation being sampled. If \code{sampprobs=NULL}, then \code{bPrimeSW}@\\
-\mbox{}\verb@#' matches \code{bPrime}.@\\
-\mbox{}\verb@#' \item \code{bPrime2SW} Vector containing the variance for each observation, conditional@\\
-\mbox{}\verb@#' on that observation being sampled. If \code{sampprobs=NULL}, then \code{bPrime2SW}@\\
 \mbox{}\verb@#' matches \code{bPrime2}.@\\
 \mbox{}\verb@#' \item \code{llik} Semiparametric log-likelihood, evaluated at the current beta@\\
 \mbox{}\verb@#' and f0 values. If sampling weights are used, then the log-likelihood is conditional@\\
@@ -608,18 +600,11 @@ The code is based on the \texttt{gldrm} package, with minor changes to incorpora
 \mbox{}\verb@    }@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@@\\
-\mbox{}\verb@    fTiltSW <- fTilt@\\
-\mbox{}\verb@    bPrimeSW <- bPrime@\\
-\mbox{}\verb@    bPrime2SW <- bPrime2@\\
-\mbox{}\verb@  @\\
-\mbox{}\verb@@\\
 \mbox{}\verb@    ## Calculate log-likelihood@\\
-\mbox{}\verb@   # llik <- sum(log(fTiltSW[cbind(ySptIndex, seq_along(ySptIndex))]))@\\
-\mbox{}\verb@    fTiltSW.extracted <- fTiltSW[cbind(ySptIndex, seq_along(ySptIndex))]@\\
-\mbox{}\verb@    llik <- sum(weights[fTiltSW.extracted>0] * log(fTiltSW.extracted[fTiltSW.extracted>0]))@\\
+\mbox{}\verb@    fTilt.extracted <- fTilt[cbind(ySptIndex, seq_along(ySptIndex))]@\\
+\mbox{}\verb@    llik <- sum(weights[fTilt.extracted>0] * log(fTilt.extracted[fTilt.extracted>0]))@\\
 \mbox{}\verb@ @\\
 \mbox{}\verb@    list(theta=theta, fTilt=fTilt, bPrime=bPrime, bPrime2=bPrime2,@\\
-\mbox{}\verb@         fTiltSW=fTiltSW, bPrimeSW=bPrimeSW, bPrime2SW=bPrime2SW,@\\
 \mbox{}\verb@         llik=llik, conv=conv, iter=iter)@\\
 \mbox{}\verb@}@\\
 \mbox{}\verb@@{\NWsep}
@@ -724,23 +709,23 @@ The code is based on the \texttt{gldrm} package, with minor changes to incorpora
 \mbox{}\verb@        # Score calculation@\\
 \mbox{}\verb@        score.logOld <- score.log@\\
 \mbox{}\verb@        @\\
-\mbox{}\verb@        fTiltSWSums <- rowSums(th$fTiltSW)@\\
-\mbox{}\verb@        fTiltSWSumsWeighted <- apply(th$fTiltSW, MARGIN=1, function(x) sum(weights * x)) @\\
-\mbox{}\verb@        smmfTiltSW <- smm * th$fTiltSW@\\
-\mbox{}\verb@        ystd <- ymm / th$bPrime2SW@\\
+\mbox{}\verb@        fTiltSums <- rowSums(th$fTilt)@\\
+\mbox{}\verb@        fTiltSumsWeighted <- apply(th$fTilt, MARGIN=1, function(x) sum(weights * x)) @\\
+\mbox{}\verb@        smmfTilt <- smm * th$fTilt@\\
+\mbox{}\verb@        ystd <- ymm / th$bPrime2@\\
 \mbox{}\verb@        ystdWeighted <- weights * ystd@\\
 \mbox{}\verb@        ystd[yeqmu] <- 0  # prevent 0/0@\\
 \mbox{}\verb@        ystdWeighted[yeqmu] <- 0  # prevent 0/0@\\
 \mbox{}\verb@    @\\
 \mbox{}\verb@@\\
 \mbox{}\verb@        score.logT1 <- sptFreq.weighted@\\
-\mbox{}\verb@        score.logT2 <- fTiltSWSumsWeighted@\\
-\mbox{}\verb@        score.logT3 <- c(smmfTiltSW %*% ystdWeighted)@\\
+\mbox{}\verb@        score.logT2 <- fTiltSumsWeighted@\\
+\mbox{}\verb@        score.logT3 <- c(smmfTilt %*% ystdWeighted)@\\
 \mbox{}\verb@        score.log <- score.logT1 - score.logT2 - score.logT3@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@        # Inverse info, score step, and f0 step are on the log scale (score is not)@\\
 \mbox{}\verb@        if (iter == 1) {@\\
-\mbox{}\verb@            d1 <- min(fTiltSWSumsWeighted)  # max inverse diagonal of first information term, on log scale@\\
+\mbox{}\verb@            d1 <- min(fTiltSumsWeighted)  # max inverse diagonal of first information term, on log scale@\\
 \mbox{}\verb@            d2 <- max(abs(score.log)) / maxlogstep@\\
 \mbox{}\verb@            d <- max(d1, d2)@\\
 \mbox{}\verb@            infoinvBFGS.log <- diag(1/d, nrow=length(f0))@\\
@@ -835,28 +820,28 @@ The code is based on the \texttt{gldrm} package, with minor changes to incorpora
 \mbox{}\verb@    }@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@    # Final score calculation@\\
-\mbox{}\verb@        smm <- outer(spt, th$bPrimeSW, "-")@\\
-\mbox{}\verb@        ymm <- y - th$bPrimeSW@\\
+\mbox{}\verb@        smm <- outer(spt, th$bPrime, "-")@\\
+\mbox{}\verb@        ymm <- y - th$bPrime@\\
 \mbox{}\verb@        yeqmu <- which(abs(ymm) < 1e-15)@\\
 \mbox{}\verb@        @\\
-\mbox{}\verb@          fTiltSWSums <- rowSums(th$fTiltSW)@\\
-\mbox{}\verb@  fTiltSWSumsWeighted <- apply(th$fTiltSW, MARGIN=1, function(x) sum(weights * x)) @\\
-\mbox{}\verb@  smmfTiltSW <- smm * th$fTiltSW@\\
-\mbox{}\verb@  ystd <- ymm / th$bPrime2SW@\\
+\mbox{}\verb@          fTiltSums <- rowSums(th$fTilt)@\\
+\mbox{}\verb@  fTiltSumsWeighted <- apply(th$fTilt, MARGIN=1, function(x) sum(weights * x)) @\\
+\mbox{}\verb@  smmfTilt <- smm * th$fTilt@\\
+\mbox{}\verb@  ystd <- ymm / th$bPrime2@\\
 \mbox{}\verb@  ystdWeighted <- weights * ystd@\\
 \mbox{}\verb@  ystd[yeqmu] <- 0  # prevent 0/0@\\
 \mbox{}\verb@  ystdWeighted[yeqmu] <- 0  # prevent 0/0@\\
 \mbox{}\verb@  ystd[yeqmu] <- 0  # prevent 0/0@\\
 \mbox{}\verb@  @\\
 \mbox{}\verb@  score.logT1 <- sptFreq.weighted@\\
-\mbox{}\verb@  score.logT2 <- fTiltSWSumsWeighted@\\
-\mbox{}\verb@  score.logT3 <- c(smmfTiltSW %*% ystdWeighted)@\\
+\mbox{}\verb@  score.logT2 <- fTiltSumsWeighted@\\
+\mbox{}\verb@  score.logT3 <- c(smmfTilt %*% ystdWeighted)@\\
 \mbox{}\verb@  score.log <- score.logT1 - score.logT2 - score.logT3@\\
 \mbox{}\verb@  @\\
 \mbox{}\verb@  # Final info calculation@\\
-\mbox{}\verb@  info.logT1 <- diag(fTiltSWSumsWeighted)@\\
-\mbox{}\verb@  info.logT2 <- tcrossprod(th$fTiltSW)@\\
-\mbox{}\verb@  info.logT3 <- tcrossprod(smmfTiltSW, smmfTiltSW * rep(ystdWeighted, each=nrow(smmfTiltSW)))@\\
+\mbox{}\verb@  info.logT1 <- diag(fTiltSumsWeighted)@\\
+\mbox{}\verb@  info.logT2 <- tcrossprod(th$fTilt)@\\
+\mbox{}\verb@  info.logT3 <- tcrossprod(smmfTilt, smmfTilt * rep(ystdWeighted, each=nrow(smmfTilt)))@\\
 \mbox{}\verb@  info.log <- info.logT1 - info.logT2 - info.logT3@\\
 \mbox{}\verb@  @\\
 \mbox{}\verb@@\\
