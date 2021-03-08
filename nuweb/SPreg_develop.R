@@ -4,6 +4,7 @@ source('nuweb/Nuweb.R')
 #  setting up the package and its infrastructure
 create("../exchreg")
 use_package("CorrBin")
+use_package("numDeriv")
 use_build_ignore("nuweb")
 use_gpl3_license()
 desc::desc_add_author(given = "Xinran", family = "Qi", email = "xinqi@mcw.edu", role = "aut",
@@ -29,10 +30,10 @@ load_all(ex)
 ## test SPGLM
 data(boric_acid)
 m <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, data=boric_acid, link="logit",
-           weights=boric_acid$Freq, control = list(eps=1e-6, maxit=1000))
+           weights=boric_acid$Freq, control = list(eps=1e-5, maxit=1000))
 
 ba2 <- boric_acid[rep(1:nrow(boric_acid), boric_acid$Freq),]
-m2 <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, data=ba2, link="logit", control = list(eps=1e-6, maxit=1000))
+m2 <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, data=ba2, link="logit", control = list(eps=1e-5, maxit=1000))
 
 all.equal(coef(m), coef(m2))
 all.equal(m$loglik, m2$loglik)

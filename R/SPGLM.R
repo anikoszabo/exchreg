@@ -60,6 +60,9 @@ spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL
             weights <- rep(1, nrow(mm))
     
     
+    data_object <- list(model_matrix=mm, resp=Y, n=rowSums(Y), weights=weights, offset=offset)
+    
+    
      
        N <- max(rowSums(Y))
        nobs <- nrow(mm)
@@ -147,13 +150,23 @@ spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL
         difference <- abs(llik - llikPre)
       }
       
+      
+        ll <- function(x){
+          spglm_loglik(beta=x[1:p], f0 = exp(x[-(1:p)]), data_object=data_object, link=link)
+        }
+
+        hess <- numDeriv::hessian(func=ll,  x=c(betas, log(referencef0)))
+        vc <- solve(-hess1)
+        SEbeta <- sqrt(diag(vc)[1:p])
+      
+      
     
 
     mt <- attr(mf, "terms")
-    res <- list(coefficients = betas, f0=referencef0, mu0=mu0, niter = iter, loglik=llik,
+    res <- list(coefficients = betas, SE = SEbeta, f0=referencef0, mu0=mu0, niter = iter, loglik=llik,
                 link = link, call = mc, terms = mt,
                 xlevels = .getXlevels(mt, mf),
-                data_object=list(model_matrix=mm, resp=Y, n=rowSums(Y), weights=weights, offset=offset))
+                data_object=data_object)
     class(res) <- "spglm"
     res
 

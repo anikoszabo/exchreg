@@ -82,13 +82,16 @@ For the purpose of identifiability, the mean of marginal probability $\{ q_{y,N}
 \mbox{}\verb@                  control=list(eps=0.001, maxit=100), ...){@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@    @\hbox{$\langle\,${\itshape Create model matrix from formula and data}\nobreak\ {\footnotesize \NWlink{nuweb2}{2}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@    @\\
+\mbox{}\verb@    data_object <- list(model_matrix=mm, resp=Y, n=rowSums(Y), weights=weights, offset=offset)@\\
+\mbox{}\verb@    @\\
 \mbox{}\verb@    @\hbox{$\langle\,${\itshape Fit model}\nobreak\ {\footnotesize \NWlink{nuweb3b}{3b}}$\,\rangle$}\verb@@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@    mt <- attr(mf, "terms")@\\
-\mbox{}\verb@    res <- list(coefficients = betas, f0=referencef0, mu0=mu0, niter = iter, loglik=llik,@\\
+\mbox{}\verb@    res <- list(coefficients = betas, SE = SEbeta, f0=referencef0, mu0=mu0, niter = iter, loglik=llik,@\\
 \mbox{}\verb@                link = link, call = mc, terms = mt,@\\
 \mbox{}\verb@                xlevels = .getXlevels(mt, mf),@\\
-\mbox{}\verb@                data_object=list(model_matrix=mm, resp=Y, n=rowSums(Y), weights=weights, offset=offset))@\\
+\mbox{}\verb@                data_object=data_object)@\\
 \mbox{}\verb@    class(res) <- "spglm"@\\
 \mbox{}\verb@    res@\\
 \mbox{}\verb@@\\
@@ -237,6 +240,8 @@ It is difficult to utilize the observed log-likelihood directly for parameter es
 \mbox{}\verb@    @\\
 \mbox{}\verb@    difference <- abs(llik - llikPre)@\\
 \mbox{}\verb@  }@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  @\hbox{$\langle\,${\itshape Calculate standard errors}\nobreak\ {\footnotesize \NWlink{nuweb?}{?}}$\,\rangle$}\verb@@\\
 \mbox{}\verb@  @\\
 \mbox{}\verb@@{\NWsep}
 \end{list}
@@ -419,6 +424,33 @@ We start the regression coefficients are set to 0, so $q^{(0)}_N$ would be the o
 \mbox{}\verb@  # initial log-likelihood@\\
 \mbox{}\verb@  llik <- log(rowSums(fTiltMatrix * hp)) %*% weights@\\
 \mbox{}\verb@@\\
+\mbox{}\verb@@{\NWsep}
+\end{list}
+\vspace{-1.5ex}
+\footnotesize
+\begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
+\item \NWtxtMacroRefIn\ \NWlink{nuweb3b}{3b}.
+
+\item{}
+\end{list}
+\vspace{4ex}
+\end{flushleft}
+\subsection{Standard errors}
+
+We will use numeric derivation to obtain the hessian of the observed data likelihood. The variance-covariance matrix can be estimated as the inverse of the negative hessian. The reference distribution is included in the hessian on the log-scale.
+
+\begin{flushleft} \small\label{scrap9}\raggedright\small
+\NWtarget{nuweb?}{} $\langle\,${\itshape Calculate standard errors}\nobreak\ {\footnotesize {?}}$\,\rangle\equiv$
+\vspace{-1ex}
+\begin{list}{}{} \item
+\mbox{}\verb@@\\
+\mbox{}\verb@  ll <- function(x){@\\
+\mbox{}\verb@    spglm_loglik(beta=x[1:p], f0 = exp(x[-(1:p)]), data_object=data_object, link=link)@\\
+\mbox{}\verb@  }@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@  hess <- numDeriv::hessian(func=ll,  x=c(betas, log(referencef0)))@\\
+\mbox{}\verb@  vc <- solve(-hess1)@\\
+\mbox{}\verb@  SEbeta <- sqrt(diag(vc)[1:p])@\\
 \mbox{}\verb@@{\NWsep}
 \end{list}
 \vspace{-1.5ex}

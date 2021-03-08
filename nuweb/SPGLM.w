@@ -63,13 +63,16 @@ spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL
                   control=list(eps=0.001, maxit=100), ...){
 
     @< Create model matrix from formula and data@>
+    
+    data_object <- list(model_matrix=mm, resp=Y, n=rowSums(Y), weights=weights, offset=offset)
+    
     @< Fit model@>
 
     mt <- attr(mf, "terms")
-    res <- list(coefficients = betas, f0=referencef0, mu0=mu0, niter = iter, loglik=llik,
+    res <- list(coefficients = betas, SE = SEbeta, f0=referencef0, mu0=mu0, niter = iter, loglik=llik,
                 link = link, call = mc, terms = mt,
                 xlevels = .getXlevels(mt, mf),
-                data_object=list(model_matrix=mm, resp=Y, n=rowSums(Y), weights=weights, offset=offset))
+                data_object=data_object)
     class(res) <- "spglm"
     res
 
@@ -181,6 +184,8 @@ It is difficult to utilize the observed log-likelihood directly for parameter es
     
     difference <- abs(llik - llikPre)
   }
+  
+  @< Calculate standard errors @>
   
 @}
 
@@ -313,5 +318,20 @@ We start the regression coefficients are set to 0, so $q^{(0)}_N$ would be the o
   llik <- log(rowSums(fTiltMatrix * hp)) %*% weights
 
 @}
+
+\subsection{Standard errors}
+
+We will use numeric derivation to obtain the hessian of the observed data likelihood. The variance-covariance matrix can be estimated as the inverse of the negative hessian. The reference distribution is included in the hessian on the log-scale.
+
+@D Calculate standard errors @{
+  ll <- function(x){
+    spglm_loglik(beta=x[1:p], f0 = exp(x[-(1:p)]), data_object=data_object, link=link)
+  }
+
+  hess <- numDeriv::hessian(func=ll,  x=c(betas, log(referencef0)))
+  vc <- solve(-hess1)
+  SEbeta <- sqrt(diag(vc)[1:p])
+@}
+
 
 \end{document}
