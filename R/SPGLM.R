@@ -156,14 +156,26 @@ spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL
         }
 
         hess <- numDeriv::hessian(func=ll,  x=c(betas, log(referencef0)))
-        vc <- solve(-hess1)
+        
+        # revert to unlogged f0
+        grad <- c(rep(1, p), 1/referencef0)
+        hess1 <- diag(grad) %*% hess %*% diag(grad)
+        
+        # create bordered hessian
+        border1 <- c(rep(0, p), rep(1, N+1))  # gradient of sum-to-one constraint
+        border2 <- c(rep(0, p), 0:N)          # gradient of fixed-mean constraint
+        bhess <- rbind(cbind(hess1, border1, border2), c(border1,0,0), c(border2,0,0))
+        
+        # calculate variance-covariance matrix
+        vc <- solve(-bhess)
         SEbeta <- sqrt(diag(vc)[1:p])
+        SEf0 <- sqrt(diag(vc)[p+1+(0:N)])
       
       
     
 
     mt <- attr(mf, "terms")
-    res <- list(coefficients = betas, SE = SEbeta, f0=referencef0, mu0=mu0, niter = iter, loglik=llik,
+    res <- list(coefficients = betas, SE = SEbeta, f0=referencef0, SEf0 = SEf0, mu0=mu0, niter = iter, loglik=llik,
                 link = link, call = mc, terms = mt,
                 xlevels = .getXlevels(mt, mf),
                 data_object=data_object)

@@ -69,7 +69,7 @@ spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL
     @< Fit model@>
 
     mt <- attr(mf, "terms")
-    res <- list(coefficients = betas, SE = SEbeta, f0=referencef0, mu0=mu0, niter = iter, loglik=llik,
+    res <- list(coefficients = betas, SE = SEbeta, f0=referencef0, SEf0 = SEf0, mu0=mu0, niter = iter, loglik=llik,
                 link = link, call = mc, terms = mt,
                 xlevels = .getXlevels(mt, mf),
                 data_object=data_object)
@@ -321,7 +321,7 @@ We start the regression coefficients are set to 0, so $q^{(0)}_N$ would be the o
 
 \subsection{Standard errors}
 
-We will use numeric derivation to obtain the hessian of the observed data likelihood. The variance-covariance matrix can be estimated as the inverse of the negative hessian. The reference distribution is included in the hessian on the log-scale.
+We will use numeric derivation to obtain the hessian of the observed data likelihood. The variance-covariance matrix can be estimated as the inverse of the negative hessian. The sum-to-one and fixed-mean constraints of the reference distribution are included by expanding the hessian to a bordered hessian before inversion by including the derivatives of the constraints (this can be derived based on the Lagrange multiplier method). The reference distribution is included in the hessian on the log-scale, and is multiplied by the gradient before inversion to revert to the original scale.
 
 @D Calculate standard errors @{
   ll <- function(x){
@@ -329,8 +329,20 @@ We will use numeric derivation to obtain the hessian of the observed data likeli
   }
 
   hess <- numDeriv::hessian(func=ll,  x=c(betas, log(referencef0)))
-  vc <- solve(-hess1)
+  
+  # revert to unlogged f0
+  grad <- c(rep(1, p), 1/referencef0)
+  hess1 <- diag(grad) %*% hess %*% diag(grad)
+  
+  # create bordered hessian
+  border1 <- c(rep(0, p), rep(1, N+1))  # gradient of sum-to-one constraint
+  border2 <- c(rep(0, p), 0:N)          # gradient of fixed-mean constraint
+  bhess <- rbind(cbind(hess1, border1, border2), c(border1,0,0), c(border2,0,0))
+  
+  # calculate variance-covariance matrix
+  vc <- solve(-bhess)
   SEbeta <- sqrt(diag(vc)[1:p])
+  SEf0 <- sqrt(diag(vc)[p+1+(0:N)])
 @}
 
 

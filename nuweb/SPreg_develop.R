@@ -42,27 +42,20 @@ a <- spglm_pred_mean(m$coefficients, m$data_object, m$link)
 b <- spglm_loglik(beta=m$coefficients, f0=m$f0, m$data_object, m$link)
 b2 <- spglm_loglik(beta=m2$coefficients, f0=m2$f0, m$data_object, m$link)
 
-# Hessian matrix calculation
-library(numDeriv)
-my_ll <- function(x, data_object, link, mu0){
-  p <- ncol(data_object$model_matrix)
-  f <- exp(x[-(1:p)])
-  spglm_loglik(beta=x[1:p], f0 = f, data_object, link)
-}
+mn <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, data=boric_acid, link="log",
+              weights=boric_acid$Freq, control = list(eps=1e-5, maxit=1000))
 
-hess <- hessian(func= my_ll,  x=c(coef(m), log(m$f0)), data_object=m$data_object, link=m$link,
-                mu0 = m$mu0)
-grad <- c(rep(1,length(coef(m))), 1/m$f0[-zf_idx])
-hess1 <- diag(grad) %*% hess %*% diag(grad)
-# inverse of Hessian matrix == variance-covariance matri (used for SE estimation) for regression coefficients
-vc <- solve(-hess1)
-sqrt(diag(vc))[1:4]
 
-# fix f0
-hess0 <- hessian(func= spglm_loglik,  x=coef(m),f0=m$f0, data_object=m$data_object, link=m$link)
-# inverse of Hessian matrix == Fisher information (used for SE estimation) for regression coefficients
-fish0 <- solve(-hess0)
-sqrt(diag(fish0))
+# laplace link
+laplace.link <- function(mu) ifelse(mu>0.5, -log(2-2*mu), log(2*mu))
+laplace.invlink <- function(eta) 0.5 + 0.5*sign(eta)*(1-exp(-abs(eta)))
+laplace.mu.eta <- function(eta) pmax(0.5 * exp(-abs(eta)), .Machine$double.eps)
+
+mll <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, data=boric_acid, 
+             link=list(linkfun=laplace.link, linkinv=laplace.invlink, mu.eta=laplace.mu.eta),
+            weights=boric_acid$Freq, control = list(eps=1e-5, maxit=1000))
+
+
 
 ######### Testing wGLDRM
 run_gldrm <- 

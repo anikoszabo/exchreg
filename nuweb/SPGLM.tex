@@ -88,7 +88,7 @@ For the purpose of identifiability, the mean of marginal probability $\{ q_{y,N}
 \mbox{}\verb@    @\hbox{$\langle\,${\itshape Fit model}\nobreak\ {\footnotesize \NWlink{nuweb3b}{3b}}$\,\rangle$}\verb@@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@    mt <- attr(mf, "terms")@\\
-\mbox{}\verb@    res <- list(coefficients = betas, SE = SEbeta, f0=referencef0, mu0=mu0, niter = iter, loglik=llik,@\\
+\mbox{}\verb@    res <- list(coefficients = betas, SE = SEbeta, f0=referencef0, SEf0 = SEf0, mu0=mu0, niter = iter, loglik=llik,@\\
 \mbox{}\verb@                link = link, call = mc, terms = mt,@\\
 \mbox{}\verb@                xlevels = .getXlevels(mt, mf),@\\
 \mbox{}\verb@                data_object=data_object)@\\
@@ -437,7 +437,7 @@ We start the regression coefficients are set to 0, so $q^{(0)}_N$ would be the o
 \end{flushleft}
 \subsection{Standard errors}
 
-We will use numeric derivation to obtain the hessian of the observed data likelihood. The variance-covariance matrix can be estimated as the inverse of the negative hessian. The reference distribution is included in the hessian on the log-scale.
+We will use numeric derivation to obtain the hessian of the observed data likelihood. The variance-covariance matrix can be estimated as the inverse of the negative hessian. The sum-to-one and fixed-mean constraints of the reference distribution are included by expanding the hessian to a bordered hessian before inversion by including the derivatives of the constraints (this can be derived based on the Lagrange multiplier method). The reference distribution is included in the hessian on the log-scale, and is multiplied by the gradient before inversion to revert to the original scale.
 
 \begin{flushleft} \small\label{scrap9}\raggedright\small
 \NWtarget{nuweb?}{} $\langle\,${\itshape Calculate standard errors}\nobreak\ {\footnotesize {?}}$\,\rangle\equiv$
@@ -449,8 +449,20 @@ We will use numeric derivation to obtain the hessian of the observed data likeli
 \mbox{}\verb@  }@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@  hess <- numDeriv::hessian(func=ll,  x=c(betas, log(referencef0)))@\\
-\mbox{}\verb@  vc <- solve(-hess1)@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  # revert to unlogged f0@\\
+\mbox{}\verb@  grad <- c(rep(1, p), 1/referencef0)@\\
+\mbox{}\verb@  hess1 <- diag(grad) %*% hess %*% diag(grad)@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  # create bordered hessian@\\
+\mbox{}\verb@  border1 <- c(rep(0, p), rep(1, N+1))  # gradient of sum-to-one constraint@\\
+\mbox{}\verb@  border2 <- c(rep(0, p), 0:N)          # gradient of fixed-mean constraint@\\
+\mbox{}\verb@  bhess <- rbind(cbind(hess1, border1, border2), c(border1,0,0), c(border2,0,0))@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  # calculate variance-covariance matrix@\\
+\mbox{}\verb@  vc <- solve(-bhess)@\\
 \mbox{}\verb@  SEbeta <- sqrt(diag(vc)[1:p])@\\
+\mbox{}\verb@  SEf0 <- sqrt(diag(vc)[p+1+(0:N)])@\\
 \mbox{}\verb@@{\NWsep}
 \end{list}
 \vspace{-1.5ex}
