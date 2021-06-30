@@ -9,6 +9,7 @@ use_build_ignore("nuweb")
 use_gpl3_license()
 desc::desc_add_author(given = "Xinran", family = "Qi", email = "xinqi@mcw.edu", role = "aut",
                comment = NULL, file = ".", normalize = FALSE)
+use_readme_rmd()
 
 # add data
 boric_acid <- CorrBin::read.CBData("z:/EOGeorge/Data/Binary/BoricAcidMousedata_processed.csv",
@@ -26,6 +27,11 @@ shell("cd c:/exchreg/nuweb/ && texify --pdf --quiet --run-viewer  wgldrm.tex")
 
 document(ex)
 load_all(ex)
+
+build_readme()
+
+check(ex, check_dir = "c:/Temp", cran = TRUE, manual=TRUE)
+
 
 ## test SPGLM
 data(boric_acid)
