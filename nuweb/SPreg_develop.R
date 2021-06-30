@@ -38,13 +38,31 @@ m2 <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, data=ba2, link="logit", con
 all.equal(coef(m), coef(m2))
 all.equal(m$loglik, m2$loglik)
 
+# offset
+moff <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, offset=Freq, data=boric_acid)
+# prediction
 a <- spglm_pred_mean(m$coefficients, m$data_object, m$link)
 b <- spglm_loglik(beta=m$coefficients, f0=m$f0, m$data_object, m$link)
 b2 <- spglm_loglik(beta=m2$coefficients, f0=m2$f0, m$data_object, m$link)
 
+nd <- data.frame(Trt = unique(boric_acid$Trt))
+nd$p <- predict(m, newdata=nd, type="mean")
+nd$p2 <- predict(moff, newdata=nd, type="mean")
+nd
+
+b3 <- predict(m, type="prob")
+predict(m, newdata=nd, newn=5, newevents=0, type="prob")
+nd_long <- merge(nd, data.frame(Resp=0:5))
+nd_long$p3 <- predict(m, newdata=nd_long, newevents = nd_long$Resp, newn=5, type="prob")
+p3mat <- matrix(nd_long$p3, nrow=nrow(nd), 
+                dimnames = list(Trt = nd$Trt, Resp=0:5))
+matplot(0:5, t(p3mat), type="l")
+
 mn <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, data=boric_acid, link="log",
               weights=boric_acid$Freq, control = list(eps=1e-5, maxit=1000))
 
+theta <- predict(m, newdata=nd, type="tilt")
+predict(moff, newdata=nd, type="lp")
 
 # laplace link
 laplace.link <- function(mu) ifelse(mu>0.5, -log(2-2*mu), log(2*mu))

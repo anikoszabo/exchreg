@@ -2,6 +2,7 @@
 % Please edit documentation in R/SPGLM.R
 \name{spglm}
 \alias{spglm}
+\alias{print.spglm}
 \title{Fit semi-parametric GLM}
 \usage{
 spglm(
@@ -15,6 +16,8 @@ spglm(
   control = list(eps = 0.001, maxit = 100),
   ...
 )
+
+\method{print}{spglm}(x, digits = max(3L, getOption("digits") - 3L), ...)
 }
 \arguments{
 \item{formula}{a one-sided formula of the form \code{cbind(r, s) ~ predictors} where \code{r} and \code{s} give the number of responses and non-responses within each cluster, respectively (so the cluster size is \code{r+s}), and \code{predictors} describes the covariates.}

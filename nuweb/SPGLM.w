@@ -64,13 +64,15 @@ spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL
 
     @< Create model matrix from formula and data@>
     
-    data_object <- list(model_matrix=mm, resp=Y, n=rowSums(Y), weights=weights, offset=offset)
+    data_object <- list(model_matrix=mm, resp=Y, n=rowSums(Y), weights=weights, offset=offset, maxN=N)
     
     @< Fit model@>
 
     mt <- attr(mf, "terms")
-    res <- list(coefficients = betas, SE = SEbeta, f0=referencef0, SEf0 = SEf0, mu0=mu0, niter = iter, loglik=llik,
-                link = link, call = mc, terms = mt,
+    names(betas) <- colnames(mm)
+    names(referencef0) <- 0:N
+    res <- list(coefficients = betas, SE = SEbeta, f0=referencef0, SEf0 = SEf0, mu0=mu0, niter = iter, 
+                loglik=llik, link = link, call = mc, terms = mt,
                 xlevels = .getXlevels(mt, mf),
                 data_object=data_object)
     class(res) <- "spglm"
@@ -121,8 +123,133 @@ spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL
         stop("'weights' must be a numeric vector")
     if (!is.null(weights) && any(weights < 0))
         stop("negative weights not allowed")
-     if (is.null(weights))
+    if (is.null(weights))
         weights <- rep(1, nrow(mm))
+   
+   # define dimensions     
+    N <- max(rowSums(Y))
+    nobs <- nrow(mm)
+    p <- ncol(mm)
+  
+@}
+
+\subsection{Methods for the \texttt{spglm} class}
+
+First, define a printing method which does not show the saved data and model matrix
+
+@O ../R/SPGLM.R @{
+#' @@rdname spglm
+#' @@export
+print.spglm <- function(x, digits = max(3L, getOption("digits") - 3L),...){
+  # based on print.lm, summary.lm, and print.summary.lm
+  cat("\nA semi-parametric generalized linear regression model fit\n")
+  cat("\nCall:\n", paste(deparse(x$call), sep = "\n", collapse = "\n"),
+        "\n\n", sep = "")
+  if (length(coef(x))) {
+    beta <- x$coefficients
+    SEbeta <- x$SE
+    z <- beta / SEbeta
+    pval <- 2 * stats::pnorm(abs(z), lower.tail=FALSE)
+    coefmat <-  cbind(Estimate = beta, `Std. Error` = SEbeta, 
+                      `z value` = z, `Pr(>|z|)` = pval)
+    cat("Coefficients:\n")
+    printCoefmat(coefmat, digits = digits, na.print = "NA", ...)
+    }
+    else cat("No coefficients\n")
+
+    if (length(x$f0)){
+        cat("\n Baseline probabilities (q0):\n")	
+        q0 <- x$f0
+         print.default(format(q0, digits = digits),
+            print.gap = 2, quote = FALSE)
+    }
+    else cat("No baseline joint probabilities\n")
+
+   cat("\n Log-likelihood: ", format(x$loglik, digits=digits), "\n")
+   invisible(x)
+}
+@}
+
+The prediction method will predict for a variety of scenarios:
+\begin{itemize}
+\item Input data set:
+  \begin{itemize}
+    \item the data used in the fitting;
+    \item new data.
+  \end{itemize}
+\item Results:
+  \begin{itemize}
+    \item $\mu(z,\beta)$: the mean event probability, given $z$;
+    \item $p_{r,n}(z)$: the probability of observing the given $r$ responses with cluster size $n$, given $z$;
+    \item $\{p_{\cdot,n}(z)\}$: the entire vector of response probabilities for cluster size $n$, given $z$ (will be a list due to varying lengths);
+    \item $\beta'z$: the linear predictor value $z$;
+    \item $\omega(\beta'z)$: the tilting parameter at predictor value $z$.
+  \end{itemize}
+\end{itemize}
+
+@O ../R/SPGLM.R @{
+#' Predict methods for SPGLM fits
+#' Obtains predictions from a fitted semi-parametric generalized linear model. Note that \code{offset}
+#' and \code{weight} terms are not implemented for predicting from new data.
+#' @@param object fitted model of class \code{spglm}
+#' @@param newdata optionally, a data frame in which to look for covariate values for prediction. 
+#'  If NULL, the original data set is used
+#' @@param type the type of prediction requested. The default is "mean", the mean event probability;
+#' "prob" requests the probability of the observation (given number of responses with given cluster size), 
+#' "tilt" returns the tilting parameter which achieves the modeled mean from the baseline distribution;
+#' and "lp" requests the linear predictor.
+#' @@param newn if \code{newdata} is provided and \code{type="prob"}, an integer or integer vector specifying the 
+#' @@param newevents if \code{newdata} is provided and \code{type="prob"}, an integer or integer vector specifying the 
+#'  number of events for the predictions
+#' @@export
+
+predict.spglm <- function(object, newdata=NULL,
+                              type=c("mean", "prob", "tilt", "lp"),
+                              newn=NULL, newevents=NULL, ...){
+  type <- match.arg(type)
+  tt <- terms(object)
+  if (!missing(newdata)){    
+    Terms <- delete.response(tt)
+    m <- model.frame(Terms, newdata, xlev = object$xlevels)
+    if (!is.null(cl <- attr(Terms, "dataClasses")))
+            .checkMFClasses(cl, m)
+    mm <- model.matrix(Terms, m)
+    data_object <- list(model_matrix=mm, offset = rep(0, nrow(mm)), weights=rep(1, nrow(mm)),
+                        maxN = object$data_object$maxN)
+    if (!missing(newn)){
+       if (!(length(newn) == 1L || length(newn) == nrow(newdata)))
+          stop("'newn' should have length 1 or equal to the number of rows of 'newdata'")
+        data_object$n <- rep(newn, length=nrow(newdata))
+        if (!all(data_object$n %in% 0:data_object$maxN))
+          stop("Values in 'newn' should be integers between 0 and the maximum cluster size in the original data")
+       }
+    if (!missing(newevents)){
+       if (!(length(newevents) == 1L || length(newevents) == nrow(newdata)))
+          stop("'newevents' should have length 1 or equal to the number of rows of 'newdata'")
+        data_object$resp <- cbind(rep(newevents, length=nrow(newdata)))
+       }
+  } else {
+    data_object <- object$data_object
+  }
+  
+  if (type=="mean"){
+    pred <- spglm_pred_mean(beta=object$coefficients, data_object, link=object$link)
+  } else
+  if (type=="prob"){
+    if (!missing(newdata) && (missing(newn) || missing(newevents)))
+       stop("For prediction of probability vectors with new data, cluster sizes should be specified in 'newn' and number of events in 'newevents'.")     
+     pred <- spglm_probs(beta=object$coefficients, f0=object$f0, 
+                              data_object=data_object, link=object$link)
+  } else
+  if (type == "lp"){
+     pred <- spglm_lp(beta=object$coefficients, data_object=data_object)
+  } else
+  if (type == "tilt"){
+     pred <- spglm_tilt(beta=object$coefficients, f0=object$f0, 
+                       data_object=data_object, link=object$link)
+  }
+  return(pred)    
+}
 @}
 
 \section{EM algorithm for model fitting}
@@ -141,25 +268,49 @@ Under the marginal compatibility assumption, the observed log-likelihood functio
 We define internal function to calculate predicted values and the log-likelihood.
 
 @O ../R/SPGLM.R @{
+#' @@keywords internal
+spglm_lp <- function(beta, data_object){
+  eta <- c(data_object$model_matrix %*% beta + data_object$offset)
+  eta
+}
+
 spglm_pred_mean <- function(beta, data_object, link){
   eta <- c(data_object$model_matrix %*% beta + data_object$offset)
   mu <- link$linkinv(eta)
   mu
 }
 
-spglm_loglik <- function(beta, f0, data_object, link){
-  
+spglm_tilt <- function(beta, f0, data_object, link){
+
     mu <- spglm_pred_mean(beta=beta, data_object=data_object, link=link)
-    N <- max(data_object$n)
+    N <- data_object$maxN
     nobs <- nrow(data_object$model_matrix)
     
     # ySptIndex is only used to calculate the log-likelihood, which we will not be using
     th <- getTheta(spt=(0:N)/N, f0=f0, mu=mu, weights=data_object$weights, ySptIndex=rep(1, nobs),
                    thetaStart=NULL, thetaControl=theta.control())
+    th$theta
+}
+
+spglm_probs <- function(beta, f0, data_object, link){
+
+    mu <- spglm_pred_mean(beta=beta, data_object=data_object, link=link)
+    N <- data_object$maxN
+    nobs <- nrow(data_object$model_matrix)
     
+    # ySptIndex is only used to calculate the log-likelihood, which we will not be using
+    th <- getTheta(spt=(0:N)/N, f0=f0, mu=mu, weights=data_object$weights, ySptIndex=rep(1, nobs),
+                   thetaStart=NULL, thetaControl=theta.control())
+                   
     hp <- sapply(0:N, function(t)dhyper(x=data_object$resp[,1], m=data_object$n, n=N-data_object$n, k=t))   
-    llik_term <- log(rowSums(t(th$fTilt) * hp))
-    llik <- llik_term %*% data_object$weights
+    probs <- rowSums(t(th$fTilt) * hp)
+    probs
+}
+
+spglm_loglik <- function(beta, f0, data_object, link){
+  
+    probs <- spglm_probs(beta, f0, data_object, link)
+    llik <- log(probs) %*% data_object$weights
     c(llik)
 }
 @}
@@ -293,10 +444,6 @@ Default settings are used for the algorithm, except the starting values is updat
 We start the regression coefficients are set to 0, so $q^{(0)}_N$ would be the overall estimate under marginally compatibility. The default value of \texttt{mu0} is set to the mean of $y_i/n_i$.
 
 @D Set starting values @{
-  N <- max(rowSums(Y))
-  nobs <- nrow(mm)
-  p <- ncol(mm)
-  
   betas <- NULL
   pooled <- CBData(data.frame(Trt = "All", NResp = Y[,1], ClusterSize = rowSums(Y), Freq=ceiling(weights)), 
                     trt="Trt", clustersize="ClusterSize", nresp="NResp", freq="Freq")
