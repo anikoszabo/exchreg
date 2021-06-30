@@ -76,7 +76,7 @@ For the purpose of identifiability, the mean of marginal probability $\{ q_{y,N}
 \mbox{}\verb@#'@{\tt @}\verb@param control a list with parameters controlling the algorithm.@\\
 \mbox{}\verb@#'@{\tt @}\verb@return an object of class \code{spglm} with the fitted model.@\\
 \mbox{}\verb@#'@{\tt @}\verb@export@\\
-\mbox{}\verb@#' @{\tt @}\verb@importFrom stats terms model.matrix@\\
+\mbox{}\verb@#' @{\tt @}\verb@importFrom stats terms model.matrix model.frame model.offset model.response model.weights@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL, @\\
 \mbox{}\verb@                  control=list(eps=0.001, maxit=100), ...){@\\
@@ -183,12 +183,13 @@ First, define a printing method which does not show the saved data and model mat
 \mbox{}\verb@@\\
 \mbox{}\verb@#' @{\tt @}\verb@rdname spglm@\\
 \mbox{}\verb@#' @{\tt @}\verb@export@\\
+\mbox{}\verb@#' @{\tt @}\verb@importFrom stats printCoefmat@\\
 \mbox{}\verb@print.spglm <- function(x, digits = max(3L, getOption("digits") - 3L),...){@\\
 \mbox{}\verb@  # based on print.lm, summary.lm, and print.summary.lm@\\
 \mbox{}\verb@  cat("\nA semi-parametric generalized linear regression model fit\n")@\\
 \mbox{}\verb@  cat("\nCall:\n", paste(deparse(x$call), sep = "\n", collapse = "\n"),@\\
 \mbox{}\verb@        "\n\n", sep = "")@\\
-\mbox{}\verb@  if (length(coef(x))) {@\\
+\mbox{}\verb@  if (length(x$coefficients)) {@\\
 \mbox{}\verb@    beta <- x$coefficients@\\
 \mbox{}\verb@    SEbeta <- x$SE@\\
 \mbox{}\verb@    z <- beta / SEbeta@\\
@@ -258,6 +259,7 @@ The prediction method will predict for a variety of scenarios:
 \mbox{}\verb@#' @{\tt @}\verb@param newevents if \code{newdata} is provided and \code{type="prob"}, an integer or integer vector specifying the @\\
 \mbox{}\verb@#'  number of events for the predictions@\\
 \mbox{}\verb@#' @{\tt @}\verb@export@\\
+\mbox{}\verb@#' @{\tt @}\verb@importFrom stats  .checkMFClasses .getXlevels delete.response@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@predict.spglm <- function(object, newdata=NULL,@\\
 \mbox{}\verb@                              type=c("mean", "prob", "tilt", "lp"),@\\
@@ -338,6 +340,7 @@ We define internal function to calculate predicted values and the log-likelihood
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
 \mbox{}\verb@#' @{\tt @}\verb@keywords internal@\\
+\mbox{}\verb@#' @{\tt @}\verb@importFrom stats dhyper@\\
 \mbox{}\verb@spglm_lp <- function(beta, data_object){@\\
 \mbox{}\verb@  eta <- c(data_object$model_matrix %*% beta + data_object$offset)@\\
 \mbox{}\verb@  eta@\\
@@ -578,9 +581,9 @@ We start the regression coefficients are set to 0, so $q^{(0)}_N$ would be the o
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
 \mbox{}\verb@  betas <- NULL@\\
-\mbox{}\verb@  pooled <- CBData(data.frame(Trt = "All", NResp = Y[,1], ClusterSize = rowSums(Y), Freq=ceiling(weights)), @\\
+\mbox{}\verb@  pooled <- CorrBin::CBData(data.frame(Trt = "All", NResp = Y[,1], ClusterSize = rowSums(Y), Freq=ceiling(weights)), @\\
 \mbox{}\verb@                    trt="Trt", clustersize="ClusterSize", nresp="NResp", freq="Freq")@\\
-\mbox{}\verb@  est <- mc.est(pooled)@\\
+\mbox{}\verb@  est <- CorrBin::mc.est(pooled)@\\
 \mbox{}\verb@  referencef0 <- est$Prob[est$ClusterSize == N]@\\
 \mbox{}\verb@  # ensure all positive values@\\
 \mbox{}\verb@  referencef0 <- (referencef0 + 1e-6)/(1+(N+1)*1e-6)@\\

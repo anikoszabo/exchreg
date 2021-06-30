@@ -24,7 +24,7 @@ The goal of the `exchreg` is to fit semi-parametric relative-risk and generalize
 
 In the future, this package will be released on CRAN, but currently the development version is available on [GitHub](https://github.com/) with:
 
-``` {r}
+``` r
 # install.packages("devtools")
 devtools::install_github("anikoszabo/exchreg")
 ```

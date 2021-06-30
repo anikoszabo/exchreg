@@ -20,31 +20,6 @@ development version is available on [GitHub](https://github.com/) with:
 ``` r
 # install.packages("devtools")
 devtools::install_github("anikoszabo/exchreg")
-#> Downloading GitHub repo anikoszabo/exchreg@HEAD
-#> cpp11   (0.2.7 -> 0.3.1) [CRAN]
-#> stringi (1.5.3 -> 1.6.2) [CRAN]
-#> dplyr   (1.0.6 -> 1.0.7) [CRAN]
-#> broom   (0.7.7 -> 0.7.8) [CRAN]
-#> Installing 4 packages: cpp11, stringi, dplyr, broom
-#> Installing packages into 'C:/Users/aszabo/AppData/Local/Temp/RtmpAvlTO6/temp_libpathd7414d5411'
-#> (as 'lib' is unspecified)
-#> package 'cpp11' successfully unpacked and MD5 sums checked
-#> package 'stringi' successfully unpacked and MD5 sums checked
-#> package 'dplyr' successfully unpacked and MD5 sums checked
-#> package 'broom' successfully unpacked and MD5 sums checked
-#> 
-#> The downloaded binary packages are in
-#>  C:\Users\aszabo\AppData\Local\Temp\Rtmp4kcjwI\downloaded_packages
-#>          checking for file 'C:\Users\aszabo\AppData\Local\Temp\Rtmp4kcjwI\remotes48842c11732\anikoszabo-exchreg-5086f8e/DESCRIPTION' ...     checking for file 'C:\Users\aszabo\AppData\Local\Temp\Rtmp4kcjwI\remotes48842c11732\anikoszabo-exchreg-5086f8e/DESCRIPTION' ...   v  checking for file 'C:\Users\aszabo\AppData\Local\Temp\Rtmp4kcjwI\remotes48842c11732\anikoszabo-exchreg-5086f8e/DESCRIPTION' (490ms)
-#>       -  preparing 'exchreg':
-#>    checking DESCRIPTION meta-information ...     checking DESCRIPTION meta-information ...   v  checking DESCRIPTION meta-information
-#>       -  checking for LF line-endings in source and make files and shell scripts
-#>       -  checking for empty or unneeded directories
-#>       -  building 'exchreg_0.0.0.9000.tar.gz'
-#>      
-#> 
-#> Installing package into 'C:/Users/aszabo/AppData/Local/Temp/RtmpAvlTO6/temp_libpathd7414d5411'
-#> (as 'lib' is unspecified)
 ```
 
 ## Example: developmental toxicology study
