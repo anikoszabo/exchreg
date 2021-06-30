@@ -11,7 +11,7 @@
 #'@param control        a list with parameters controlling the algorithm.
 #'@return an object of class \code{spglm} with the fitted model.
 #'@export
-#' @importFrom stats terms model.matrix
+#' @importFrom stats terms model.matrix model.frame model.offset model.response model.weights
 
 spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL, 
                   control=list(eps=0.001, maxit=100), ...){
@@ -71,9 +71,9 @@ spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL
     
      
        betas <- NULL
-       pooled <- CBData(data.frame(Trt = "All", NResp = Y[,1], ClusterSize = rowSums(Y), Freq=ceiling(weights)), 
+       pooled <- CorrBin::CBData(data.frame(Trt = "All", NResp = Y[,1], ClusterSize = rowSums(Y), Freq=ceiling(weights)), 
                          trt="Trt", clustersize="ClusterSize", nresp="NResp", freq="Freq")
-       est <- mc.est(pooled)
+       est <- CorrBin::mc.est(pooled)
        referencef0 <- est$Prob[est$ClusterSize == N]
        # ensure all positive values
        referencef0 <- (referencef0 + 1e-6)/(1+(N+1)*1e-6)
@@ -190,12 +190,13 @@ spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL
 
 #' @rdname spglm
 #' @export
+#' @importFrom stats printCoefmat
 print.spglm <- function(x, digits = max(3L, getOption("digits") - 3L),...){
   # based on print.lm, summary.lm, and print.summary.lm
   cat("\nA semi-parametric generalized linear regression model fit\n")
   cat("\nCall:\n", paste(deparse(x$call), sep = "\n", collapse = "\n"),
         "\n\n", sep = "")
-  if (length(coef(x))) {
+  if (length(x$coefficients)) {
     beta <- x$coefficients
     SEbeta <- x$SE
     z <- beta / SEbeta
@@ -233,6 +234,7 @@ print.spglm <- function(x, digits = max(3L, getOption("digits") - 3L),...){
 #' @param newevents if \code{newdata} is provided and \code{type="prob"}, an integer or integer vector specifying the 
 #'  number of events for the predictions
 #' @export
+#' @importFrom stats  .checkMFClasses .getXlevels delete.response
 
 predict.spglm <- function(object, newdata=NULL,
                               type=c("mean", "prob", "tilt", "lp"),
@@ -283,6 +285,7 @@ predict.spglm <- function(object, newdata=NULL,
 }
 
 #' @keywords internal
+#' @importFrom stats dhyper
 spglm_lp <- function(beta, data_object){
   eta <- c(data_object$model_matrix %*% beta + data_object$offset)
   eta

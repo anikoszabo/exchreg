@@ -2,3 +2,5 @@
 ^\.Rproj\.user$
 ^nuweb$
 ^LICENSE\.md$
+^README\.Rmd$
+^SPsims$

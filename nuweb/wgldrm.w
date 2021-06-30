@@ -29,6 +29,7 @@ The code is based on the \texttt{gldrm} package, with minor changes to incorpora
 #' This function is called by the main \code{gldrm} function.
 #'
 #' @@keywords internal
+#' @@importFrom stats lm.fit lm.wfit weighted.mean
 gldrm.control <- function(eps=1e-10, maxiter=100, returnfTiltMatrix=TRUE,
                           returnf0ScoreInfo=FALSE, print=FALSE,
                           betaStart=NULL, f0Start=NULL)
