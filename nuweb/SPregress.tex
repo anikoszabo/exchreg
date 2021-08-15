@@ -139,16 +139,16 @@ where $p(r,n)(z)$ is the probability of observing $r$ responses in a cluster of 
 \mbox{}\verb@#'@{\tt @}\verb@param formula a one-sided formula of the form \code{cbind(r, s) ~ predictors} where \code{r} and \code{s} give the number of responses and non-responses within each cluster, respectively (so the cluster size is \code{r+s}), and \code{predictors} describes the covariates.@\\
 \mbox{}\verb@#'@{\tt @}\verb@param data  an optional matrix or data frame containing the variables in the formula \code{formula}. By default the variables are taken from \code{environment(formula).}@\\
 \mbox{}\verb@#'@{\tt @}\verb@param subset  an optional vector specifying a subset of observations to be used.@\\
-\mbox{}\verb@#'@{\tt @}\verb@param weight  an optional vector specifying observation weights.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param weights an optional vector specifying observation weights.@\\
 \mbox{}\verb@#'@{\tt @}\verb@param link      a link function for the binomial distribution, the inverse of which models the covariate effects.@\\
 \mbox{}\verb@#'@{\tt @}\verb@param mu1       an optional value between 0 and 1 giving the maximal predicted marginal probability. If set to NULL (default), the algorithm will try to estimate it from the data.@\\
 \mbox{}\verb@#'@{\tt @}\verb@param start     an optional list with elements named \code{beta}, \code{q}, and/or \code{mu1} giving starting values for estimation. If none or only some are specified, starting values are selected automatically.@\\
 \mbox{}\verb@#'@{\tt @}\verb@param control a list with parameters controlling the algorithm.@\\
 \mbox{}\verb@#'@{\tt @}\verb@return an object of class \code{sprr} with the fitted model.@\\
 \mbox{}\verb@#'@{\tt @}\verb@export@\\
-\mbox{}\verb@#' @{\tt @}\verb@importFrom stats terms model.matrix@\\
+\mbox{}\verb@#' @{\tt @}\verb@importFrom stats terms model.matrix binomial dbinom glm uniroot@\\
 \mbox{}\verb@@\\
-\mbox{}\verb@sprr <- function(formula, data, subset, weights, link="cloglog", mu1=NULL, start=NULL, control=list(eps=0.001, maxit=100), ...){@\\
+\mbox{}\verb@sprr <- function(formula, data, subset, weights, link="cloglog", mu1=NULL, start=NULL, control=list(eps=0.001, maxit=100)){@\\
 \mbox{}\verb@    fam <- binomial(link=link)@\\
 \mbox{}\verb@    model_fun <- fam$linkinv@\\
 \mbox{}\verb@@\\
@@ -689,12 +689,12 @@ For $q$, we will get the marginally compatible estimate for the pooled dataset, 
 \mbox{}\verb@ @\\
 \mbox{}\verb@ if (is.null(start$q)){@\\
 \mbox{}\verb@    if (is.null(weights))       @\\
-\mbox{}\verb@      pooled <- CBData(data.frame(Trt = "All", NResp = Y[,1], ClusterSize = rowSums(Y)), trt="Trt",@\\
+\mbox{}\verb@      pooled <- CorrBin::CBData(data.frame(Trt = "All", NResp = Y[,1], ClusterSize = rowSums(Y)), trt="Trt",@\\
 \mbox{}\verb@                       clustersize="ClusterSize", nresp="NResp")@\\
 \mbox{}\verb@    else                       @\\
-\mbox{}\verb@       pooled <- CBData(data.frame(Trt = "All", NResp = Y[,1], ClusterSize = rowSums(Y), Freq=ceiling(weights)), @\\
+\mbox{}\verb@       pooled <- CorrBin::CBData(data.frame(Trt = "All", NResp = Y[,1], ClusterSize = rowSums(Y), Freq=ceiling(weights)), @\\
 \mbox{}\verb@                        trt="Trt", clustersize="ClusterSize", nresp="NResp", freq="Freq")@\\
-\mbox{}\verb@   est <- mc.est(pooled)@\\
+\mbox{}\verb@   est <- CorrBin::mc.est(pooled)@\\
 \mbox{}\verb@    q0 <- est$Prob[est$ClusterSize == N]@\\
 \mbox{}\verb@    if (is.null(mu1) && is.null(start$mu1))@\\
 \mbox{}\verb@        q_new <- mean_constrained_probs(pmax(q0, 0.01))@\\

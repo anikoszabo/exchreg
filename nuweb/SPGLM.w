@@ -51,7 +51,8 @@ For the purpose of identifiability, the mean of marginal probability $\{ q_{y,N}
 #'@@param formula a one-sided formula of the form \code{cbind(r, s) ~ predictors} where \code{r} and \code{s} give the number of responses and non-responses within each cluster, respectively (so the cluster size is \code{r+s}), and \code{predictors} describes the covariates.
 #'@@param data  an optional matrix or data frame containing the variables in the formula \code{formula}. By default the variables are taken from \code{environment(formula).}
 #'@@param subset	an optional vector specifying a subset of observations to be used.
-#'@@param weight	an optional vector specifying observation weights.
+#'@@param weights	an optional vector specifying observation weights.
+#'@@param offset	an optional vector specifying an offset term (predictor with a fixed coefficient of 1).
 #'@@param link	  a link function for the mean.
 #'@@param mu0	  an optional numeric value constraining the mean of the baseline distribution
 #'@@param control	a list with parameters controlling the algorithm.
@@ -60,7 +61,7 @@ For the purpose of identifiability, the mean of marginal probability $\{ q_{y,N}
 #' @@importFrom stats terms model.matrix model.frame model.offset model.response model.weights
 
 spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL, 
-                  control=list(eps=0.001, maxit=100), ...){
+                  control=list(eps=0.001, maxit=100)){
 
     @< Create model matrix from formula and data@>
     
@@ -71,7 +72,8 @@ spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL
     mt <- attr(mf, "terms")
     names(betas) <- colnames(mm)
     names(referencef0) <- 0:N
-    res <- list(coefficients = betas, SE = SEbeta, f0=referencef0, SEf0 = SEf0, mu0=mu0, niter = iter, 
+    rownames(vc) <- colnames(vc) <- c(names(betas), names(referencef0))
+    res <- list(coefficients = betas, f0=referencef0, vcov = vc, mu0=mu0, niter = iter, 
                 loglik=llik, link = link, call = mc, terms = mt,
                 xlevels = .getXlevels(mt, mf),
                 data_object=data_object)
@@ -138,7 +140,6 @@ spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL
 First, define a printing method which does not show the saved data and model matrix
 
 @O ../R/SPGLM.R @{
-#' @@rdname spglm
 #' @@export
 #' @@importFrom stats printCoefmat
 print.spglm <- function(x, digits = max(3L, getOption("digits") - 3L),...){
@@ -148,7 +149,8 @@ print.spglm <- function(x, digits = max(3L, getOption("digits") - 3L),...){
         "\n\n", sep = "")
   if (length(x$coefficients)) {
     beta <- x$coefficients
-    SEbeta <- x$SE
+    p <- length(beta)
+    SEbeta <- sqrt(diag(x$vcov[1:p, 1:p]))
     z <- beta / SEbeta
     pval <- 2 * stats::pnorm(abs(z), lower.tail=FALSE)
     coefmat <-  cbind(Estimate = beta, `Std. Error` = SEbeta, 
@@ -171,6 +173,51 @@ print.spglm <- function(x, digits = max(3L, getOption("digits") - 3L),...){
 }
 @}
 
+Custom extractors for the coefficients and variance-covariance matrix, with option to get only beta's (default), only the backbone pdf, or both.
+
+@O ../R/SPGLM.R @{
+#' Extracting components of fitted `spglm` object
+#'
+#' @@param object fitted model of class \code{spglm}
+#' @@param beta logical, whether the regression parameter estimates / variances should be returned
+#' @@param f0 logical, whether the backbone density estimates / variances should be returned
+#' @@param ... not used, present fo consistency with generics
+#' @@importFrom stats coef
+#' @@export
+
+coef.spglm <- function(object, beta=TRUE, f0=FALSE, ...){
+  res <- NULL
+  if (beta) res <- c(res, object$coefficients)
+  if (f0) res <- c(res, object$f0)
+  res
+}
+
+#' @@rdname coef.spglm
+#'
+#' @@importFrom stats vcov
+#' @@export
+vcov.spglm <- function(object, beta=TRUE, f0=FALSE, ...){
+  p <- length(object$coefficients)
+  m <- nrow(object$vcov)
+  
+  idx <- NULL
+  if (beta) idx <- c(idx, 1:p)
+  if (f0) idx <- c(idx, (p+1):m)
+  
+  vc <- object$vcov[idx,idx]
+  vc
+}
+
+#' @@rdname coef.spglm
+#'
+#' @@importFrom stats logLik
+#' @@export
+logLik.spglm <- function(object, ...){
+  object$loglik
+}
+                              
+@}
+
 The prediction method will predict for a variety of scenarios:
 \begin{itemize}
 \item Input data set:
@@ -190,6 +237,7 @@ The prediction method will predict for a variety of scenarios:
 
 @O ../R/SPGLM.R @{
 #' Predict methods for SPGLM fits
+#'
 #' Obtains predictions from a fitted semi-parametric generalized linear model. Note that \code{offset}
 #' and \code{weight} terms are not implemented for predicting from new data.
 #' @@param object fitted model of class \code{spglm}
@@ -199,9 +247,10 @@ The prediction method will predict for a variety of scenarios:
 #' "prob" requests the probability of the observation (given number of responses with given cluster size), 
 #' "tilt" returns the tilting parameter which achieves the modeled mean from the baseline distribution;
 #' and "lp" requests the linear predictor.
-#' @@param newn if \code{newdata} is provided and \code{type="prob"}, an integer or integer vector specifying the 
+#' @@param newn if \code{newdata} is provided and \code{type="prob"}, an integer or integer vector specifying the clustersize for the predictors
 #' @@param newevents if \code{newdata} is provided and \code{type="prob"}, an integer or integer vector specifying the 
 #'  number of events for the predictions
+#' @@param ... not used, present for consistency with generic
 #' @@export
 #' @@importFrom stats  .checkMFClasses .getXlevels delete.response
 
@@ -403,7 +452,7 @@ p_{N'y'y} &= \textbf{Pr}_N(Y=y \mid Y'=y',N') \\
 \end{equation}
 and $p_{N_iy_is_i}^{(k)}$ at the $k$th step of the iteration can be obtained by using $q_{y,N}^{(k)}$ on the right-hand side of the expression. 
 
-The value of $q_{y,N}^{(k)}((\boldsymbol{Z}_i; \boldsymbol{\beta}^{(k)})$ can be obtained from ${q_{y,N}^{(0)}}^{(k)}$ using \ref{M:densitySPGLM}. But it is also returned by \texttt{gldrmFit} as \texttt{fTiltMatrix}.
+The value of $q_{y,N}^{(k)}(\boldsymbol{Z}_i; \boldsymbol{\beta}^{(k)})$ can be obtained from ${q_{y,N}^{(0)}}^{(k)}$ using \ref{M:densitySPGLM}. But it is also returned by \texttt{gldrmFit} as \texttt{fTiltMatrix}.
 
 
 @D E-step @{
@@ -490,9 +539,8 @@ We will use numeric derivation to obtain the hessian of the observed data likeli
   bhess <- rbind(cbind(hess1, border1, border2), c(border1,0,0), c(border2,0,0))
   
   # calculate variance-covariance matrix
-  vc <- solve(-bhess)
-  SEbeta <- sqrt(diag(vc)[1:p])
-  SEf0 <- sqrt(diag(vc)[p+1+(0:N)])
+  bvc <- solve(-bhess)
+  vc <- bvc[1:(p+N+1), 1:(p+N+1)]      # remove border
 @}
 
 

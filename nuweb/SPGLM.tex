@@ -70,7 +70,8 @@ For the purpose of identifiability, the mean of marginal probability $\{ q_{y,N}
 \mbox{}\verb@#'@{\tt @}\verb@param formula a one-sided formula of the form \code{cbind(r, s) ~ predictors} where \code{r} and \code{s} give the number of responses and non-responses within each cluster, respectively (so the cluster size is \code{r+s}), and \code{predictors} describes the covariates.@\\
 \mbox{}\verb@#'@{\tt @}\verb@param data  an optional matrix or data frame containing the variables in the formula \code{formula}. By default the variables are taken from \code{environment(formula).}@\\
 \mbox{}\verb@#'@{\tt @}\verb@param subset  an optional vector specifying a subset of observations to be used.@\\
-\mbox{}\verb@#'@{\tt @}\verb@param weight  an optional vector specifying observation weights.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param weights an optional vector specifying observation weights.@\\
+\mbox{}\verb@#'@{\tt @}\verb@param offset  an optional vector specifying an offset term (predictor with a fixed coefficient of 1).@\\
 \mbox{}\verb@#'@{\tt @}\verb@param link      a link function for the mean.@\\
 \mbox{}\verb@#'@{\tt @}\verb@param mu0       an optional numeric value constraining the mean of the baseline distribution@\\
 \mbox{}\verb@#'@{\tt @}\verb@param control a list with parameters controlling the algorithm.@\\
@@ -79,18 +80,19 @@ For the purpose of identifiability, the mean of marginal probability $\{ q_{y,N}
 \mbox{}\verb@#' @{\tt @}\verb@importFrom stats terms model.matrix model.frame model.offset model.response model.weights@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL, @\\
-\mbox{}\verb@                  control=list(eps=0.001, maxit=100), ...){@\\
+\mbox{}\verb@                  control=list(eps=0.001, maxit=100)){@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@    @\hbox{$\langle\,${\itshape Create model matrix from formula and data}\nobreak\ {\footnotesize \NWlink{nuweb2}{2}}$\,\rangle$}\verb@@\\
 \mbox{}\verb@    @\\
 \mbox{}\verb@    data_object <- list(model_matrix=mm, resp=Y, n=rowSums(Y), weights=weights, offset=offset, maxN=N)@\\
 \mbox{}\verb@    @\\
-\mbox{}\verb@    @\hbox{$\langle\,${\itshape Fit model}\nobreak\ {\footnotesize \NWlink{nuweb6}{6}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@    @\hbox{$\langle\,${\itshape Fit model}\nobreak\ {\footnotesize \NWlink{nuweb7}{7}}$\,\rangle$}\verb@@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@    mt <- attr(mf, "terms")@\\
 \mbox{}\verb@    names(betas) <- colnames(mm)@\\
 \mbox{}\verb@    names(referencef0) <- 0:N@\\
-\mbox{}\verb@    res <- list(coefficients = betas, SE = SEbeta, f0=referencef0, SEf0 = SEf0, mu0=mu0, niter = iter, @\\
+\mbox{}\verb@    rownames(vc) <- colnames(vc) <- c(names(betas), names(referencef0))@\\
+\mbox{}\verb@    res <- list(coefficients = betas, f0=referencef0, vcov = vc, mu0=mu0, niter = iter, @\\
 \mbox{}\verb@                loglik=llik, link = link, call = mc, terms = mt,@\\
 \mbox{}\verb@                xlevels = .getXlevels(mt, mf),@\\
 \mbox{}\verb@                data_object=data_object)@\\
@@ -103,7 +105,7 @@ For the purpose of identifiability, the mean of marginal probability $\{ q_{y,N}
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb3}{, 3}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}.
+\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb3}{, 3}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}\NWlink{nuweb6}{, 6}.
 
 \item{}
 \end{list}
@@ -181,7 +183,6 @@ First, define a printing method which does not show the saved data and model mat
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
-\mbox{}\verb@#' @{\tt @}\verb@rdname spglm@\\
 \mbox{}\verb@#' @{\tt @}\verb@export@\\
 \mbox{}\verb@#' @{\tt @}\verb@importFrom stats printCoefmat@\\
 \mbox{}\verb@print.spglm <- function(x, digits = max(3L, getOption("digits") - 3L),...){@\\
@@ -191,7 +192,8 @@ First, define a printing method which does not show the saved data and model mat
 \mbox{}\verb@        "\n\n", sep = "")@\\
 \mbox{}\verb@  if (length(x$coefficients)) {@\\
 \mbox{}\verb@    beta <- x$coefficients@\\
-\mbox{}\verb@    SEbeta <- x$SE@\\
+\mbox{}\verb@    p <- length(beta)@\\
+\mbox{}\verb@    SEbeta <- sqrt(diag(x$vcov[1:p, 1:p]))@\\
 \mbox{}\verb@    z <- beta / SEbeta@\\
 \mbox{}\verb@    pval <- 2 * stats::pnorm(abs(z), lower.tail=FALSE)@\\
 \mbox{}\verb@    coefmat <-  cbind(Estimate = beta, `Std. Error` = SEbeta, @\\
@@ -217,7 +219,65 @@ First, define a printing method which does not show the saved data and model mat
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb3}{, 3}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}.
+\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb3}{, 3}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}\NWlink{nuweb6}{, 6}.
+
+\item{}
+\end{list}
+\vspace{4ex}
+\end{flushleft}
+Custom extractors for the coefficients and variance-covariance matrix, with option to get only beta's (default), only the backbone pdf, or both.
+
+\begin{flushleft} \small\label{scrap4}\raggedright\small
+\NWtarget{nuweb4}{} \verb@"../R/SPGLM.R"@\nobreak\ {\footnotesize {4}}$\equiv$
+\vspace{-1ex}
+\begin{list}{}{} \item
+\mbox{}\verb@@\\
+\mbox{}\verb@#' Extracting components of fitted `spglm` object@\\
+\mbox{}\verb@#'@\\
+\mbox{}\verb@#' @{\tt @}\verb@param object fitted model of class \code{spglm}@\\
+\mbox{}\verb@#' @{\tt @}\verb@param beta logical, whether the regression parameter estimates / variances should be returned@\\
+\mbox{}\verb@#' @{\tt @}\verb@param f0 logical, whether the backbone density estimates / variances should be returned@\\
+\mbox{}\verb@#' @{\tt @}\verb@param ... not used, present fo consistency with generics@\\
+\mbox{}\verb@#' @{\tt @}\verb@importFrom stats coef@\\
+\mbox{}\verb@#' @{\tt @}\verb@export@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@coef.spglm <- function(object, beta=TRUE, f0=FALSE, ...){@\\
+\mbox{}\verb@  res <- NULL@\\
+\mbox{}\verb@  if (beta) res <- c(res, object$coefficients)@\\
+\mbox{}\verb@  if (f0) res <- c(res, object$f0)@\\
+\mbox{}\verb@  res@\\
+\mbox{}\verb@}@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@#' @{\tt @}\verb@rdname coef.spglm@\\
+\mbox{}\verb@#'@\\
+\mbox{}\verb@#' @{\tt @}\verb@importFrom stats vcov@\\
+\mbox{}\verb@#' @{\tt @}\verb@export@\\
+\mbox{}\verb@vcov.spglm <- function(object, beta=TRUE, f0=FALSE, ...){@\\
+\mbox{}\verb@  p <- length(object$coefficients)@\\
+\mbox{}\verb@  m <- nrow(object$vcov)@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  idx <- NULL@\\
+\mbox{}\verb@  if (beta) idx <- c(idx, 1:p)@\\
+\mbox{}\verb@  if (f0) idx <- c(idx, (p+1):m)@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  vc <- object$vcov[idx,idx]@\\
+\mbox{}\verb@  vc@\\
+\mbox{}\verb@}@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@#' @{\tt @}\verb@rdname coef.spglm@\\
+\mbox{}\verb@#'@\\
+\mbox{}\verb@#' @{\tt @}\verb@importFrom stats logLik@\\
+\mbox{}\verb@#' @{\tt @}\verb@export@\\
+\mbox{}\verb@logLik.spglm <- function(object, ...){@\\
+\mbox{}\verb@  object$loglik@\\
+\mbox{}\verb@}@\\
+\mbox{}\verb@                              @\\
+\mbox{}\verb@@{\NWsep}
+\end{list}
+\vspace{-1.5ex}
+\footnotesize
+\begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
+\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb3}{, 3}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}\NWlink{nuweb6}{, 6}.
 
 \item{}
 \end{list}
@@ -240,12 +300,13 @@ The prediction method will predict for a variety of scenarios:
   \end{itemize}
 \end{itemize}
 
-\begin{flushleft} \small\label{scrap4}\raggedright\small
-\NWtarget{nuweb4}{} \verb@"../R/SPGLM.R"@\nobreak\ {\footnotesize {4}}$\equiv$
+\begin{flushleft} \small\label{scrap5}\raggedright\small
+\NWtarget{nuweb5}{} \verb@"../R/SPGLM.R"@\nobreak\ {\footnotesize {5}}$\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
 \mbox{}\verb@#' Predict methods for SPGLM fits@\\
+\mbox{}\verb@#'@\\
 \mbox{}\verb@#' Obtains predictions from a fitted semi-parametric generalized linear model. Note that \code{offset}@\\
 \mbox{}\verb@#' and \code{weight} terms are not implemented for predicting from new data.@\\
 \mbox{}\verb@#' @{\tt @}\verb@param object fitted model of class \code{spglm}@\\
@@ -255,9 +316,10 @@ The prediction method will predict for a variety of scenarios:
 \mbox{}\verb@#' "prob" requests the probability of the observation (given number of responses with given cluster size), @\\
 \mbox{}\verb@#' "tilt" returns the tilting parameter which achieves the modeled mean from the baseline distribution;@\\
 \mbox{}\verb@#' and "lp" requests the linear predictor.@\\
-\mbox{}\verb@#' @{\tt @}\verb@param newn if \code{newdata} is provided and \code{type="prob"}, an integer or integer vector specifying the @\\
+\mbox{}\verb@#' @{\tt @}\verb@param newn if \code{newdata} is provided and \code{type="prob"}, an integer or integer vector specifying the clustersize for the predictors@\\
 \mbox{}\verb@#' @{\tt @}\verb@param newevents if \code{newdata} is provided and \code{type="prob"}, an integer or integer vector specifying the @\\
 \mbox{}\verb@#'  number of events for the predictions@\\
+\mbox{}\verb@#' @{\tt @}\verb@param ... not used, present for consistency with generic@\\
 \mbox{}\verb@#' @{\tt @}\verb@export@\\
 \mbox{}\verb@#' @{\tt @}\verb@importFrom stats  .checkMFClasses .getXlevels delete.response@\\
 \mbox{}\verb@@\\
@@ -313,7 +375,7 @@ The prediction method will predict for a variety of scenarios:
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb3}{, 3}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}.
+\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb3}{, 3}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}\NWlink{nuweb6}{, 6}.
 
 \item{}
 \end{list}
@@ -334,8 +396,8 @@ Under the marginal compatibility assumption, the observed log-likelihood functio
 \subsection{Model prediction and likelihood}
 We define internal function to calculate predicted values and the log-likelihood.
 
-\begin{flushleft} \small\label{scrap5}\raggedright\small
-\NWtarget{nuweb5}{} \verb@"../R/SPGLM.R"@\nobreak\ {\footnotesize {5}}$\equiv$
+\begin{flushleft} \small\label{scrap6}\raggedright\small
+\NWtarget{nuweb6}{} \verb@"../R/SPGLM.R"@\nobreak\ {\footnotesize {6}}$\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -390,7 +452,7 @@ We define internal function to calculate predicted values and the log-likelihood
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb3}{, 3}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}.
+\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb3}{, 3}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}\NWlink{nuweb6}{, 6}.
 
 \item{}
 \end{list}
@@ -399,13 +461,13 @@ We define internal function to calculate predicted values and the log-likelihood
 It is difficult to utilize the observed log-likelihood directly for parameter estimation. Its score function is complex because there is a logarithm of a sum in \eqref{E:loglikelihood}. Therefore, we implement an EM algorithm for parameter estimation.
 
 
-\begin{flushleft} \small\label{scrap6}\raggedright\small
-\NWtarget{nuweb6}{} $\langle\,${\itshape Fit model}\nobreak\ {\footnotesize {6}}$\,\rangle\equiv$
+\begin{flushleft} \small\label{scrap7}\raggedright\small
+\NWtarget{nuweb7}{} $\langle\,${\itshape Fit model}\nobreak\ {\footnotesize {7}}$\,\rangle\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
-\mbox{}\verb@ @\hbox{$\langle\,${\itshape Set starting values}\nobreak\ {\footnotesize \NWlink{nuweb9a}{9a}}$\,\rangle$}\verb@@\\
-\mbox{}\verb@ @\hbox{$\langle\,${\itshape Set up for E-step}\nobreak\ {\footnotesize \NWlink{nuweb7}{7}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@ @\hbox{$\langle\,${\itshape Set starting values}\nobreak\ {\footnotesize \NWlink{nuweb10a}{10a}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@ @\hbox{$\langle\,${\itshape Set up for E-step}\nobreak\ {\footnotesize \NWlink{nuweb8}{8}}$\,\rangle$}\verb@@\\
 \mbox{}\verb@ @\\
 \mbox{}\verb@ iter <- 0@\\
 \mbox{}\verb@ difference <- 100@\\
@@ -415,13 +477,13 @@ It is difficult to utilize the observed log-likelihood directly for parameter es
 \mbox{}\verb@    betasPre <- betas@\\
 \mbox{}\verb@    llikPre <- llik@\\
 \mbox{}\verb@    @\\
-\mbox{}\verb@    @\hbox{$\langle\,${\itshape E-step}\nobreak\ {\footnotesize \NWlink{nuweb8a}{8a}}$\,\rangle$}\verb@@\\
-\mbox{}\verb@    @\hbox{$\langle\,${\itshape M-step}\nobreak\ {\footnotesize \NWlink{nuweb8b}{8b}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@    @\hbox{$\langle\,${\itshape E-step}\nobreak\ {\footnotesize \NWlink{nuweb9a}{9a}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@    @\hbox{$\langle\,${\itshape M-step}\nobreak\ {\footnotesize \NWlink{nuweb9b}{9b}}$\,\rangle$}\verb@@\\
 \mbox{}\verb@    @\\
 \mbox{}\verb@    difference <- abs(llik - llikPre)@\\
 \mbox{}\verb@  }@\\
 \mbox{}\verb@  @\\
-\mbox{}\verb@  @\hbox{$\langle\,${\itshape Calculate standard errors}\nobreak\ {\footnotesize \NWlink{nuweb9b}{9b}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@  @\hbox{$\langle\,${\itshape Calculate standard errors}\nobreak\ {\footnotesize \NWlink{nuweb10b}{10b}}$\,\rangle$}\verb@@\\
 \mbox{}\verb@  @\\
 \mbox{}\verb@@{\NWsep}
 \end{list}
@@ -451,8 +513,8 @@ where $q_{s_i,N}$ is the probability of achieving $s_i$ events in a cluster of s
 
 Equation \ref{E:logLikelihoodCompleteMapFromObs} can be interpreted as the log-likelihood of a model with fixed cluster size $N$ for an expanded data set: each observation with cluster size $N_i$ and number of responses $y_i$ is expanded to $(N+1)$ replicates with $0, 1, \ldots, N$, responses, respectively.
 
-\begin{flushleft} \small\label{scrap7}\raggedright\small
-\NWtarget{nuweb7}{} $\langle\,${\itshape Set up for E-step}\nobreak\ {\footnotesize {7}}$\,\rangle\equiv$
+\begin{flushleft} \small\label{scrap8}\raggedright\small
+\NWtarget{nuweb8}{} $\langle\,${\itshape Set up for E-step}\nobreak\ {\footnotesize {8}}$\,\rangle\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -478,7 +540,7 @@ Equation \ref{E:logLikelihoodCompleteMapFromObs} can be interpreted as the log-l
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtMacroRefIn\ \NWlink{nuweb6}{6}.
+\item \NWtxtMacroRefIn\ \NWlink{nuweb7}{7}.
 
 \item{}
 \end{list}
@@ -506,11 +568,11 @@ p_{N'y'y} &= \textbf{Pr}_N(Y=y \mid Y'=y',N') \\
 \end{equation}
 and $p_{N_iy_is_i}^{(k)}$ at the $k$th step of the iteration can be obtained by using $q_{y,N}^{(k)}$ on the right-hand side of the expression. 
 
-The value of $q_{y,N}^{(k)}((\boldsymbol{Z}_i; \boldsymbol{\beta}^{(k)})$ can be obtained from ${q_{y,N}^{(0)}}^{(k)}$ using \ref{M:densitySPGLM}. But it is also returned by \texttt{gldrmFit} as \texttt{fTiltMatrix}.
+The value of $q_{y,N}^{(k)}(\boldsymbol{Z}_i; \boldsymbol{\beta}^{(k)})$ can be obtained from ${q_{y,N}^{(0)}}^{(k)}$ using \ref{M:densitySPGLM}. But it is also returned by \texttt{gldrmFit} as \texttt{fTiltMatrix}.
 
 
-\begin{flushleft} \small\label{scrap8}\raggedright\small
-\NWtarget{nuweb8a}{} $\langle\,${\itshape E-step}\nobreak\ {\footnotesize {8a}}$\,\rangle\equiv$
+\begin{flushleft} \small\label{scrap9}\raggedright\small
+\NWtarget{nuweb9a}{} $\langle\,${\itshape E-step}\nobreak\ {\footnotesize {9a}}$\,\rangle\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -531,7 +593,7 @@ The value of $q_{y,N}^{(k)}((\boldsymbol{Z}_i; \boldsymbol{\beta}^{(k)})$ can be
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtMacroRefIn\ \NWlink{nuweb6}{6}.
+\item \NWtxtMacroRefIn\ \NWlink{nuweb7}{7}.
 
 \item{}
 \end{list}
@@ -543,8 +605,8 @@ Equation \eqref{E:ExpectedlogLikelihoodCompleteMapFromObs} can be interpreted as
 
 Default settings are used for the algorithm, except the starting values is updated based on the previous iteration
 
-\begin{flushleft} \small\label{scrap9}\raggedright\small
-\NWtarget{nuweb8b}{} $\langle\,${\itshape M-step}\nobreak\ {\footnotesize {8b}}$\,\rangle\equiv$
+\begin{flushleft} \small\label{scrap10}\raggedright\small
+\NWtarget{nuweb9b}{} $\langle\,${\itshape M-step}\nobreak\ {\footnotesize {9b}}$\,\rangle\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -566,7 +628,7 @@ Default settings are used for the algorithm, except the starting values is updat
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtMacroRefIn\ \NWlink{nuweb6}{6}.
+\item \NWtxtMacroRefIn\ \NWlink{nuweb7}{7}.
 
 \item{}
 \end{list}
@@ -575,8 +637,8 @@ Default settings are used for the algorithm, except the starting values is updat
 \subsection{Starting values}
 We start the regression coefficients are set to 0, so $q^{(0)}_N$ would be the overall estimate under marginally compatibility. The default value of \texttt{mu0} is set to the mean of $y_i/n_i$.
 
-\begin{flushleft} \small\label{scrap10}\raggedright\small
-\NWtarget{nuweb9a}{} $\langle\,${\itshape Set starting values}\nobreak\ {\footnotesize {9a}}$\,\rangle\equiv$
+\begin{flushleft} \small\label{scrap11}\raggedright\small
+\NWtarget{nuweb10a}{} $\langle\,${\itshape Set starting values}\nobreak\ {\footnotesize {10a}}$\,\rangle\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -605,7 +667,7 @@ We start the regression coefficients are set to 0, so $q^{(0)}_N$ would be the o
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtMacroRefIn\ \NWlink{nuweb6}{6}.
+\item \NWtxtMacroRefIn\ \NWlink{nuweb7}{7}.
 
 \item{}
 \end{list}
@@ -615,8 +677,8 @@ We start the regression coefficients are set to 0, so $q^{(0)}_N$ would be the o
 
 We will use numeric derivation to obtain the hessian of the observed data likelihood. The variance-covariance matrix can be estimated as the inverse of the negative hessian. The sum-to-one and fixed-mean constraints of the reference distribution are included by expanding the hessian to a bordered hessian before inversion by including the derivatives of the constraints (this can be derived based on the Lagrange multiplier method). The reference distribution is included in the hessian on the log-scale, and is multiplied by the gradient before inversion to revert to the original scale.
 
-\begin{flushleft} \small\label{scrap11}\raggedright\small
-\NWtarget{nuweb9b}{} $\langle\,${\itshape Calculate standard errors}\nobreak\ {\footnotesize {9b}}$\,\rangle\equiv$
+\begin{flushleft} \small\label{scrap12}\raggedright\small
+\NWtarget{nuweb10b}{} $\langle\,${\itshape Calculate standard errors}\nobreak\ {\footnotesize {10b}}$\,\rangle\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -636,15 +698,14 @@ We will use numeric derivation to obtain the hessian of the observed data likeli
 \mbox{}\verb@  bhess <- rbind(cbind(hess1, border1, border2), c(border1,0,0), c(border2,0,0))@\\
 \mbox{}\verb@  @\\
 \mbox{}\verb@  # calculate variance-covariance matrix@\\
-\mbox{}\verb@  vc <- solve(-bhess)@\\
-\mbox{}\verb@  SEbeta <- sqrt(diag(vc)[1:p])@\\
-\mbox{}\verb@  SEf0 <- sqrt(diag(vc)[p+1+(0:N)])@\\
+\mbox{}\verb@  bvc <- solve(-bhess)@\\
+\mbox{}\verb@  vc <- bvc[1:(p+N+1), 1:(p+N+1)]      # remove border@\\
 \mbox{}\verb@@{\NWsep}
 \end{list}
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtMacroRefIn\ \NWlink{nuweb6}{6}.
+\item \NWtxtMacroRefIn\ \NWlink{nuweb7}{7}.
 
 \item{}
 \end{list}

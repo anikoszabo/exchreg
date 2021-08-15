@@ -35,16 +35,16 @@ lambda_from_p <- function(p.vec, n=length(p.vec)-1){
 #'@param formula a one-sided formula of the form \code{cbind(r, s) ~ predictors} where \code{r} and \code{s} give the number of responses and non-responses within each cluster, respectively (so the cluster size is \code{r+s}), and \code{predictors} describes the covariates.
 #'@param data  an optional matrix or data frame containing the variables in the formula \code{formula}. By default the variables are taken from \code{environment(formula).}
 #'@param subset an optional vector specifying a subset of observations to be used.
-#'@param weight an optional vector specifying observation weights.
+#'@param weights        an optional vector specifying observation weights.
 #'@param link     a link function for the binomial distribution, the inverse of which models the covariate effects.
 #'@param mu1      an optional value between 0 and 1 giving the maximal predicted marginal probability. If set to NULL (default), the algorithm will try to estimate it from the data.
 #'@param start    an optional list with elements named \code{beta}, \code{q}, and/or \code{mu1} giving starting values for estimation. If none or only some are specified, starting values are selected automatically.
 #'@param control        a list with parameters controlling the algorithm.
 #'@return an object of class \code{sprr} with the fitted model.
 #'@export
-#' @importFrom stats terms model.matrix
+#' @importFrom stats terms model.matrix binomial dbinom glm uniroot
 
-sprr <- function(formula, data, subset, weights, link="cloglog", mu1=NULL, start=NULL, control=list(eps=0.001, maxit=100), ...){
+sprr <- function(formula, data, subset, weights, link="cloglog", mu1=NULL, start=NULL, control=list(eps=0.001, maxit=100)){
     fam <- binomial(link=link)
     model_fun <- fam$linkinv
 
@@ -110,12 +110,12 @@ sprr <- function(formula, data, subset, weights, link="cloglog", mu1=NULL, start
          
          if (is.null(start$q)){
             if (is.null(weights))       
-              pooled <- CBData(data.frame(Trt = "All", NResp = Y[,1], ClusterSize = rowSums(Y)), trt="Trt",
+              pooled <- CorrBin::CBData(data.frame(Trt = "All", NResp = Y[,1], ClusterSize = rowSums(Y)), trt="Trt",
                                clustersize="ClusterSize", nresp="NResp")
             else                       
-               pooled <- CBData(data.frame(Trt = "All", NResp = Y[,1], ClusterSize = rowSums(Y), Freq=ceiling(weights)), 
+               pooled <- CorrBin::CBData(data.frame(Trt = "All", NResp = Y[,1], ClusterSize = rowSums(Y), Freq=ceiling(weights)), 
                                 trt="Trt", clustersize="ClusterSize", nresp="NResp", freq="Freq")
-           est <- mc.est(pooled)
+           est <- CorrBin::mc.est(pooled)
             q0 <- est$Prob[est$ClusterSize == N]
             if (is.null(mu1) && is.null(start$mu1))
                 q_new <- mean_constrained_probs(pmax(q0, 0.01))

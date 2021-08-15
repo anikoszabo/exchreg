@@ -2,9 +2,7 @@
 % Please edit documentation in R/SPGLM.R
 \name{predict.spglm}
 \alias{predict.spglm}
-\title{Predict methods for SPGLM fits
-Obtains predictions from a fitted semi-parametric generalized linear model. Note that \code{offset}
-and \code{weight} terms are not implemented for predicting from new data.}
+\title{Predict methods for SPGLM fits}
 \usage{
 \method{predict}{spglm}(
   object,
@@ -26,13 +24,14 @@ If NULL, the original data set is used}
 "tilt" returns the tilting parameter which achieves the modeled mean from the baseline distribution;
 and "lp" requests the linear predictor.}
 
-\item{newn}{if \code{newdata} is provided and \code{type="prob"}, an integer or integer vector specifying the}
+\item{newn}{if \code{newdata} is provided and \code{type="prob"}, an integer or integer vector specifying the clustersize for the predictors}
 
 \item{newevents}{if \code{newdata} is provided and \code{type="prob"}, an integer or integer vector specifying the
 number of events for the predictions}
+
+\item{...}{not used, present for consistency with generic}
 }
 \description{
-Predict methods for SPGLM fits
 Obtains predictions from a fitted semi-parametric generalized linear model. Note that \code{offset}
 and \code{weight} terms are not implemented for predicting from new data.
 }

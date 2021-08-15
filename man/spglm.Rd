@@ -2,7 +2,6 @@
 % Please edit documentation in R/SPGLM.R
 \name{spglm}
 \alias{spglm}
-\alias{print.spglm}
 \title{Fit semi-parametric GLM}
 \usage{
 spglm(
@@ -13,11 +12,8 @@ spglm(
   offset,
   link = "logit",
   mu0 = NULL,
-  control = list(eps = 0.001, maxit = 100),
-  ...
+  control = list(eps = 0.001, maxit = 100)
 )
-
-\method{print}{spglm}(x, digits = max(3L, getOption("digits") - 3L), ...)
 }
 \arguments{
 \item{formula}{a one-sided formula of the form \code{cbind(r, s) ~ predictors} where \code{r} and \code{s} give the number of responses and non-responses within each cluster, respectively (so the cluster size is \code{r+s}), and \code{predictors} describes the covariates.}
@@ -26,13 +22,15 @@ spglm(
 
 \item{subset}{an optional vector specifying a subset of observations to be used.}
 
+\item{weights}{an optional vector specifying observation weights.}
+
+\item{offset}{an optional vector specifying an offset term (predictor with a fixed coefficient of 1).}
+
 \item{link}{a link function for the mean.}
 
 \item{mu0}{an optional numeric value constraining the mean of the baseline distribution}
 
 \item{control}{a list with parameters controlling the algorithm.}
-
-\item{weight}{an optional vector specifying observation weights.}
 }
 \value{
 an object of class \code{spglm} with the fitted model.

@@ -1,2 +1,4 @@
 * add examples to help pages (eg spglm, predict.spglm function)
-* Rd file for predict.spglm: title includes note; definition of 'newn' is truncated
+* [DONE] Rd file for predict.spglm: title includes note; definition of 'newn' is truncated
+* [DONE] spglm - return entire variance-covariance matrix, not just SE
+* add se.fit option to predict method

@@ -36,7 +36,7 @@ check(ex, check_dir = "c:/Temp", cran = TRUE, manual=TRUE)
 ## test SPGLM
 data(boric_acid)
 m <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, data=boric_acid, link="logit",
-           weights=boric_acid$Freq, control = list(eps=1e-5, maxit=1000))
+           weights=boric_acid$Freq, control = list(eps=1e-5, maxit=100))
 
 ba2 <- boric_acid[rep(1:nrow(boric_acid), boric_acid$Freq),]
 m2 <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, data=ba2, link="logit", control = list(eps=1e-5, maxit=1000))

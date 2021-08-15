@@ -12,8 +12,7 @@ sprr(
   link = "cloglog",
   mu1 = NULL,
   start = NULL,
-  control = list(eps = 0.001, maxit = 100),
-  ...
+  control = list(eps = 0.001, maxit = 100)
 )
 }
 \arguments{
@@ -23,6 +22,8 @@ sprr(
 
 \item{subset}{an optional vector specifying a subset of observations to be used.}
 
+\item{weights}{an optional vector specifying observation weights.}
+
 \item{link}{a link function for the binomial distribution, the inverse of which models the covariate effects.}
 
 \item{mu1}{an optional value between 0 and 1 giving the maximal predicted marginal probability. If set to NULL (default), the algorithm will try to estimate it from the data.}
@@ -30,8 +31,6 @@ sprr(
 \item{start}{an optional list with elements named \code{beta}, \code{q}, and/or \code{mu1} giving starting values for estimation. If none or only some are specified, starting values are selected automatically.}
 
 \item{control}{a list with parameters controlling the algorithm.}
-
-\item{weight}{an optional vector specifying observation weights.}
 }
 \value{
 an object of class \code{sprr} with the fitted model.
