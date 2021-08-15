@@ -1,0 +1,240 @@
+---
+title: Code to reproduce results in _Semi-parametric generalized linear model for
+  binomial data with varying cluster sizes_
+author: "Aniko Szabo"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+```{r setup, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache=TRUE, autodep=TRUE)
+
+library(exchreg, quietly=TRUE)
+library(knitr, quietly=TRUE)
+library(dplyr, quietly=TRUE)
+library(tidyr, quietly=TRUE)
+library(ggplot2, quietly=TRUE)
+theme_set(theme_classic())
+
+library(CorrBin, quietly=TRUE) ## utilities for working with correlated binomial data
+library(VGAM, quietly=TRUE) ## for beta-binomial regression
+library(geepack, quietly=TRUE)  ## for GEE
+
+set.seed(20210814)
+```
+
+
+# Application to boric acid developmental toxicity data
+
+The boric acid data is included in the package as an example dataset `boric_acid`. We fit a GEE, beta-binomial, and semi-parameteric GLM model with a logit-link.
+
+```{r BA_gee}
+boric_acid$Trt <- factor(boric_acid$Trt, levels=c("0","0.1", "0.2","0.4"),
+                         labels = c("0%", "0.1%", "0.2%", "0.4%"))
+# convert data into one-row per cluster-member format needed for GEE
+ba_long <- unwrap(boric_acid)
+
+# run GEE
+ba_gee <- geeglm(Resp ~ Trt, data=ba_long, id = ID, family=binomial,
+                 corstr = "exch")
+ba_gee
+```
+
+```{r BA_betabin}
+# fit beta-binomial model
+ba_bb <- vgam(cbind(NResp, ClusterSize - NResp) ~ Trt, weights = Freq,
+                 data=boric_acid, family =  betabinomial(lmu="logitlink"))
+summaryvglm(ba_bb)
+```
+
+```{r BA_spglm}
+ba_spglm <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, data=boric_acid,
+                  weights  = Freq)
+
+ba_spglm
+```
+
+```{r Table1}
+table1 <- data.frame(GEE = cbind(Est = coef(ba_gee), SE=sqrt(diag(vcov(ba_gee)))),
+                BB = cbind(Est = coef(ba_bb)[-2],      # second value is logit(rho)   
+                           SE=sqrt(diag(vcov(ba_bb)))[-2]),  
+                SPGLM = cbind(Est = coef(ba_spglm), SE=ba_spglm$SE))
+kable(table1, digits=3)
+```
+
+Fitted values for the outcome probabilities can be obtained for the SPGLM and Beta-binomial models, as well as using non-parametric estimates within each group.
+
+```{r PredictBB}
+newd <- data.frame(Trt=unique(boric_acid$Trt))
+
+# beta-binomial
+mns_rho <- predictvglm(ba_bb, type="link", newdata=newd, untransform=TRUE) 
+
+fit_bb <- tibble(newd, as_tibble(mns_rho)) %>%
+  group_by(Trt) %>%
+  mutate(ClusterSize = 10,
+         NResp = list(0:10),
+         Prob = list(dbetabinom(0:10, size=10, prob=mu, rho=rho))) %>%
+  unnest(cols=c(NResp, Prob)) %>%
+  mutate(Model="Beta-binomial")
+
+```
+
+```{r PredictSPGLM}
+fit_spglm <- crossing(newd, NResp=0:10) %>%
+  mutate(ClusterSize = 10,
+         Prob = predict(ba_spglm, newdata=., type="prob", 
+                          newn=ClusterSize, newevents = NResp),
+         Model = "SPGLM")
+```
+
+```{r PredictNonparam}
+fit_nonpar <- mc.est(boric_acid) %>%
+  filter(ClusterSize == 10) %>%
+  mutate(Model="Non-parametric")
+
+```
+
+```{r PredictPlot}
+fits <- bind_rows(fit_bb, fit_spglm, fit_nonpar)
+
+ggplot(fits, aes(x=NResp, y=Prob, colour=Model)) +
+  facet_wrap(~Trt) +
+  geom_point() +
+  geom_line() +
+  scale_x_continuous("# of affected animals", breaks=seq(0,10,by=2)) +
+  ylab("Probability") +
+  theme_bw()
+
+```
+
+
+
+
+# Simulation study
+
+Goal:
+
+ * simulate data with either a beta-binomial or a q-power backbone distribution that follows a semi-parametric logistic regression model
+ * fit the data using our semi-parametric regression model, beta-binomial regression (potentially misspecified distribution), and GEE (marginal only)
+ 
+
+## Simulating data
+
+The dose levels will have mean 0.2, 0.4, 0.6, and 0.8, and intra-cluster correlation 0.4.
+
+```{r SimOne}
+generate_data <- function(pdf.fun, maxClusterSize = 10, aveClusterSize = 9,
+                          doseLevels = 4, nPerDose = 25){
+  # generate binomially distributed frequencies for each cluster-size
+  ss <- expand.grid(Trt = 1:doseLevels, ClusterSize = 0:maxClusterSize) %>%
+    group_by(Trt) %>%
+    mutate(Freq = rmultinom(1, size=nPerDose, 
+                            prob=dbinom(ClusterSize, size=maxClusterSize, 
+                                        prob=aveClusterSize / maxClusterSize))) %>%
+    filter(Freq > 0)
+
+  res <- ran.CBData(sample.sizes = ss, 
+                p.gen.fun = function(g) 0.2*g,
+                rho.gen.fun = function(g) 0.4,
+                pdf.fun = pdf.fun)
+  res$Z <- rnorm(nrow(res), mean=0, sd=1)  
+  res
+}
+```
+
+## Analyzing a simulated dataset
+
+```{r AnalyzeOne}
+run_analysis <- function(dat){
+  #GEE
+  dat_long <- unwrap(dat)
+  res_gee <- geeglm(Resp ~ Trt + Z, data=dat_long, id = ID, family=binomial,
+                 corstr = "exch")
+  #Beta-binomial
+  res_bb <- vgam(cbind(NResp, ClusterSize - NResp) ~ Trt + Z, weights = Freq,
+                 data=dat, family =  betabinomial(lmu="logitlink"))
+  #SPGLM
+  op <- options(warn=-1)
+  res_spglm <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt + Z, data=dat,
+                   weights  = Freq)
+  options(op)
+  
+  nms <- names(coef(res_spglm))
+  res <- bind_rows(
+    GEE = tibble(Term = nms, 
+                 Est=coef(res_gee), 
+                 SE = sqrt(diag(vcov(res_gee)))),
+    BB = tibble(Term = nms,
+                Est = coef(res_bb)[-2],      # second value is logit(rho)   
+                SE=sqrt(diag(vcov(res_bb)))[-2]),
+    SPGLM = tibble(Term = nms,
+                   Est = coef(res_spglm), 
+                   SE=res_spglm$SE),
+    .id = "Model")
+  res
+}
+```
+
+
+## Run simulations
+
+
+
+```{r ActualSim}
+R <- 2
+
+# beta-binomial PDF
+simBB.list <- 
+  replicate(R,
+            {simd <- generate_data(betabin.pdf);
+             run_analysis(simd)}, 
+            simplify = FALSE)
+
+# q-power PDF
+simQP.list <- 
+  replicate(R,
+            {simd <- generate_data(qpower.pdf);
+             run_analysis(simd)}, 
+            simplify = FALSE)
+         
+simBB <- bind_rows(simBB.list, .id="ID")
+simQP <- bind_rows(simQP.list, .id="ID")
+
+```
+
+
+
+## Compare results
+
+```{r Compare}
+comb <- bind_rows(`Beta-Binomial` = simBB, `q-Power`= simQP, .id="Generator") 
+
+# get correct values of parameters on a logit-model scale
+mns <- c(0.2, 0.4, 0.6, 0.8)
+logit.mns <- log(mns/(1-mns))
+correct <- tibble(Term = c("(Intercept)","Trt2","Trt3", "Trt4","Z"),
+                  Correct = c(logit.mns[1], logit.mns[-1] - logit.mns[1], 0))
+comb <- left_join(comb, correct, by="Term")
+
+scomb <- comb %>%
+  group_by(Generator, Term, Model) %>%
+  summarize(bias = mean(Est-Correct, na.rm=TRUE),
+            mc.se = sd(Est, na.rm=TRUE),
+            se = mean(SE, na.rm=TRUE),
+            .groups="drop_last") %>%
+  mutate(rel.eff = mc.se / mc.se[Model=="GEE"]) %>%
+  ungroup() %>%
+  arrange(Generator, Model, Term)
+kable(scomb, digits=3)
+```
+
+```{r ComparePlot}
+ggplot(comb, aes(x=Model, y=Est, colour=Model)) +
+  facet_grid(Generator~Term) +
+  geom_hline(aes(yintercept=Correct)) +
+  geom_jitter(alpha=0.3, height=0)
+```
+

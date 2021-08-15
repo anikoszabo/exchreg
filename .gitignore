@@ -15,3 +15,5 @@ nuweb/*.tex
 nuweb/*.synctex
 nuweb/*.ind
 nuweb/*.ilg
+ManuscriptCode/Manuscript_cache/*
+ManuscriptCode/Manuscript_files/*

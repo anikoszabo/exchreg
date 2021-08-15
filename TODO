@@ -1,0 +1,2 @@
+* add examples to help pages (eg spglm, predict.spglm function)
+* Rd file for predict.spglm: title includes note; definition of 'newn' is truncated
