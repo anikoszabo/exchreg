@@ -20,9 +20,10 @@ use_data(boric_acid)
 ex <- as.package("../exchreg")
 nuweb(ex)
 
-shell("cd c:/exchreg/nuweb/ && texify --pdf --quiet --run-viewer  SPregress.tex")
-shell("cd c:/exchreg/nuweb/ && texify --pdf --quiet --run-viewer  SPGLM.tex")
-shell("cd c:/exchreg/nuweb/ && texify --pdf --quiet --run-viewer  wgldrm.tex")
+#shell("cd c:/exchreg/nuweb/ && texify --pdf --quiet --run-viewer  SPregress.tex")
+shell("cd c:/exchreg/nuweb/ && texify --pdf --quiet  SPregress.tex")
+shell("cd c:/exchreg/nuweb/ && texify --pdf --quiet SPGLM.tex")
+shell("cd c:/exchreg/nuweb/ && texify --pdf --quiet wgldrm.tex")
 
 
 document(ex)

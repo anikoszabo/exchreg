@@ -293,7 +293,7 @@ logLik.spglm <- function(object, ...){
 #'  number of events for the predictions
 #' @param ... not used, present for consistency with generic
 #' @export
-#' @importFrom stats  .checkMFClasses .getXlevels delete.response
+#' @importFrom stats predict .checkMFClasses .getXlevels delete.response
 
 predict.spglm <- function(object, newdata=NULL,
                               type=c("mean", "prob", "tilt", "lp"),
@@ -307,7 +307,7 @@ predict.spglm <- function(object, newdata=NULL,
             .checkMFClasses(cl, m)
     mm <- model.matrix(Terms, m)
     data_object <- list(model_matrix=mm, offset = rep(0, nrow(mm)), weights=rep(1, nrow(mm)),
-                        maxN = object$data_object$maxN)
+                        maxN = object$data_object$maxN, spt = object$data_object$spt)
     if (!missing(newn)){
        if (!(length(newn) == 1L || length(newn) == nrow(newdata)))
           stop("'newn' should have length 1 or equal to the number of rows of 'newdata'")

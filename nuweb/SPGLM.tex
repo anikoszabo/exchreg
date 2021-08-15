@@ -321,7 +321,7 @@ The prediction method will predict for a variety of scenarios:
 \mbox{}\verb@#'  number of events for the predictions@\\
 \mbox{}\verb@#' @{\tt @}\verb@param ... not used, present for consistency with generic@\\
 \mbox{}\verb@#' @{\tt @}\verb@export@\\
-\mbox{}\verb@#' @{\tt @}\verb@importFrom stats  .checkMFClasses .getXlevels delete.response@\\
+\mbox{}\verb@#' @{\tt @}\verb@importFrom stats predict .checkMFClasses .getXlevels delete.response@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@predict.spglm <- function(object, newdata=NULL,@\\
 \mbox{}\verb@                              type=c("mean", "prob", "tilt", "lp"),@\\
@@ -335,7 +335,7 @@ The prediction method will predict for a variety of scenarios:
 \mbox{}\verb@            .checkMFClasses(cl, m)@\\
 \mbox{}\verb@    mm <- model.matrix(Terms, m)@\\
 \mbox{}\verb@    data_object <- list(model_matrix=mm, offset = rep(0, nrow(mm)), weights=rep(1, nrow(mm)),@\\
-\mbox{}\verb@                        maxN = object$data_object$maxN)@\\
+\mbox{}\verb@                        maxN = object$data_object$maxN, spt = object$data_object$spt)@\\
 \mbox{}\verb@    if (!missing(newn)){@\\
 \mbox{}\verb@       if (!(length(newn) == 1L || length(newn) == nrow(newdata)))@\\
 \mbox{}\verb@          stop("'newn' should have length 1 or equal to the number of rows of 'newdata'")@\\
@@ -491,7 +491,7 @@ It is difficult to utilize the observed log-likelihood directly for parameter es
 \mbox{}\verb@    difference <- abs(llik - llikPre)@\\
 \mbox{}\verb@  }@\\
 \mbox{}\verb@  @\\
-\mbox{}\verb@  @\hbox{$\langle\,${\itshape Calculate standard errors}\nobreak\ {\footnotesize \NWlink{nuweb?}{?}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@  @\hbox{$\langle\,${\itshape Calculate standard errors}\nobreak\ {\footnotesize \NWlink{nuweb11}{11}}$\,\rangle$}\verb@@\\
 \mbox{}\verb@  @\\
 \mbox{}\verb@@{\NWsep}
 \end{list}
@@ -714,7 +714,7 @@ Values of $y$ that cannot be a possible number of responses in a cluster of size
 We will use numeric derivation to obtain the hessian of the observed data likelihood. The variance-covariance matrix can be estimated as the inverse of the negative hessian. The sum-to-one and fixed-mean constraints of the reference distribution are included by expanding the hessian to a bordered hessian before inversion by including the derivatives of the constraints (this can be derived based on the Lagrange multiplier method). The reference distribution is included in the hessian on the log-scale, and is multiplied by the gradient before inversion to revert to the original scale.
 
 \begin{flushleft} \small\label{scrap13}\raggedright\small
-\NWtarget{nuweb?}{} $\langle\,${\itshape Calculate standard errors}\nobreak\ {\footnotesize {?}}$\,\rangle\equiv$
+\NWtarget{nuweb11}{} $\langle\,${\itshape Calculate standard errors}\nobreak\ {\footnotesize {11}}$\,\rangle\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
