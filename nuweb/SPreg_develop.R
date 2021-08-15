@@ -44,6 +44,11 @@ m2 <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, data=ba2, link="logit", con
 all.equal(coef(m), coef(m2))
 all.equal(m$loglik, m2$loglik)
 
+# values with 0 support
+m12 <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, 
+             data=subset(boric_acid, ClusterSize < 13),
+             link="logit", weights=Freq, control = list(eps=1e-5, maxit=100))
+
 # offset
 moff <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, offset=Freq, data=boric_acid)
 # prediction

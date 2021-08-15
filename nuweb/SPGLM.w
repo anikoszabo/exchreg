@@ -65,7 +65,7 @@ spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL
 
     @< Create model matrix from formula and data@>
     
-    data_object <- list(model_matrix=mm, resp=Y, n=rowSums(Y), weights=weights, offset=offset, maxN=N)
+    data_object <- list(model_matrix=mm, resp=Y, n=rowSums(Y), weights=weights, offset=offset, maxN=N, spt=0:N)
     
     @< Fit model@>
 
@@ -337,9 +337,10 @@ spglm_tilt <- function(beta, f0, data_object, link){
     mu <- spglm_pred_mean(beta=beta, data_object=data_object, link=link)
     N <- data_object$maxN
     nobs <- nrow(data_object$model_matrix)
+    spt <- data_object$spt
     
     # ySptIndex is only used to calculate the log-likelihood, which we will not be using
-    th <- getTheta(spt=(0:N)/N, f0=f0, mu=mu, weights=data_object$weights, ySptIndex=rep(1, nobs),
+    th <- getTheta(spt=spt/N, f0=f0[spt+1], mu=mu, weights=data_object$weights, ySptIndex=rep(1, nobs),
                    thetaStart=NULL, thetaControl=theta.control())
     th$theta
 }
@@ -349,13 +350,19 @@ spglm_probs <- function(beta, f0, data_object, link){
     mu <- spglm_pred_mean(beta=beta, data_object=data_object, link=link)
     N <- data_object$maxN
     nobs <- nrow(data_object$model_matrix)
-    
+    spt <- data_object$spt
+   
     # ySptIndex is only used to calculate the log-likelihood, which we will not be using
-    th <- getTheta(spt=(0:N)/N, f0=f0, mu=mu, weights=data_object$weights, ySptIndex=rep(1, nobs),
+    th <- getTheta(spt=spt/N, f0=f0[spt+1], mu=mu, weights=data_object$weights, ySptIndex=rep(1, nobs),
                    thetaStart=NULL, thetaControl=theta.control())
                    
-    hp <- sapply(0:N, function(t)dhyper(x=data_object$resp[,1], m=data_object$n, n=N-data_object$n, k=t))   
-    probs <- rowSums(t(th$fTilt) * hp)
+    hp <- sapply(0:N, function(t)dhyper(x=data_object$resp[,1], m=data_object$n, n=N-data_object$n, k=t))  
+    
+    # fill in 0's for values with no support
+    fTilt <- matrix(0, ncol = nobs, nrow = N+1)
+    fTilt[spt+1,] <- th$fTilt
+    #probs <- rowSums(t(th$fTilt) * hp)
+    probs <- rowSums(t(fTilt) * hp)
     probs
 }
 
@@ -373,7 +380,8 @@ It is difficult to utilize the observed log-likelihood directly for parameter es
 @D Fit model @{
  @< Set starting values@>
  @< Set up for E-step @>
- 
+ @< Identify zero support@>
+
  iter <- 0
  difference <- 100
  while (iter < control$maxit & difference > control$eps) {
@@ -428,6 +436,7 @@ Equation \ref{E:logLikelihoodCompleteMapFromObs} can be interpreted as the log-l
   mm2 <- mm[Ycomb[,"i"], ,drop=FALSE]
   weights2 <- weights[Ycomb[,"i"]]
   offset2 <- offset[Ycomb[,"i"]]
+
 @}
 
 \subsection{Expectation step}
@@ -457,7 +466,7 @@ The value of $q_{y,N}^{(k)}(\boldsymbol{Z}_i; \boldsymbol{\beta}^{(k)})$ can be 
 
 @D E-step @{
   # convert fTiltMatrix to long vector, watching out for potentially different support
-  y_idx <- match(Ycomb[,"y"], spt)
+  y_idx <- match(Ycomb[,"y"], 0:N)
   fTilt2 <- ifelse(!is.na(y_idx), fTiltMatrix[cbind(Ycomb[,"i"], y_idx)], 0)
   
   # numerator of weights
@@ -478,17 +487,17 @@ Default settings are used for the algorithm, except the starting values is updat
 
 @D M-step @{
   gldrmControl0 <- gldrm.control(returnfTiltMatrix = TRUE, returnf0ScoreInfo = FALSE, print=FALSE,
-                                betaStart = betasPre, f0Start = referencef0Pre)
+                                betaStart = betasPre, f0Start = referencef0Pre[spt+1])
 
   mod <- gldrmFit(x = mm2, y=Ycomb[,"y"]/N, linkfun=link$linkfun, linkinv = link$linkinv,
                   mu.eta = link$mu.eta, mu0 = mu0, offset = offset2, weights = pp, 
                   gldrmControl = gldrmControl0,  thetaControl=theta.control(),
                   betaControl=beta.control(), f0Control=f0.control())
                   
-  fTiltMatrix <- mod$fTiltMatrix[obs_start,]
+  fTiltMatrix[,spt+1] <- mod$fTiltMatrix[obs_start,]
   betas <- mod$beta
-  referencef0 <- mod$f0
-  spt <- round(mod$spt * N)
+  referencef0[spt+1] <- mod$f0
+#  spt <- round(mod$spt * N)
   llik <- c(log(rowSums(fTiltMatrix * hp)) %*% weights)
 @}
 
@@ -501,11 +510,25 @@ We start the regression coefficients are set to 0, so $q^{(0)}_N$ would be the o
                     trt="Trt", clustersize="ClusterSize", nresp="NResp", freq="Freq")
   est <- CorrBin::mc.est(pooled)
   referencef0 <- est$Prob[est$ClusterSize == N]
-  # ensure all positive values
-  referencef0 <- (referencef0 + 1e-6)/(1+(N+1)*1e-6)
   
-  fTiltMatrix <- matrix(rep(referencef0, times=nobs), byrow=TRUE, nrow=nobs, ncol=N+1)
-  spt <- 0:N
+  
+@}
+
+Values of $y$ that cannot be a possible number of responses in a cluster of size $N$ corresponding to an observed cluster will always have $q_{y,N}=0$, so they need to be removed from the support during the `gldrm` estimation process (which will use $\log q_{y,N}$)
+
+@D Identify zero support @{
+  
+  # identify possible y-values
+  spt <- sort(unique(Ycomb[,"y"]))
+  data_object$spt <- spt
+  
+  # ensure all positive values within support
+  referencef0[spt+1] <- referencef0[spt+1] + 1e-6
+  referencef0 <- referencef0 / sum(referencef0)
+
+  
+  fTiltMatrix <- matrix(rep(referencef0, times=nobs), byrow=TRUE, 
+      nrow=nobs, ncol=N+1)
 
   if (is.null(mu0))
     mu0 <- weighted.mean(Y[,1]/rowSums(Y), weights)
@@ -528,19 +551,22 @@ We will use numeric derivation to obtain the hessian of the observed data likeli
   }
 
   hess <- numDeriv::hessian(func=ll,  x=c(betas, log(referencef0)))
+  hess_idx <- c(1:p, p+spt+1) # betas and f0 elements with non-zero support
   
   # revert to unlogged f0
-  grad <- c(rep(1, p), 1/referencef0)
-  hess1 <- diag(grad) %*% hess %*% diag(grad)
+  grad <- c(rep(1, p), 1/referencef0[spt+1])
+  hess1 <- diag(grad) %*% hess[hess_idx, hess_idx] %*% diag(grad)
   
   # create bordered hessian
-  border1 <- c(rep(0, p), rep(1, N+1))  # gradient of sum-to-one constraint
-  border2 <- c(rep(0, p), 0:N)          # gradient of fixed-mean constraint
+  border1 <- c(rep(0, p), rep(1, length(spt)))  # gradient of sum-to-one constraint
+  border2 <- c(rep(0, p), spt)          # gradient of fixed-mean constraint
   bhess <- rbind(cbind(hess1, border1, border2), c(border1,0,0), c(border2,0,0))
   
   # calculate variance-covariance matrix
   bvc <- solve(-bhess)
-  vc <- bvc[1:(p+N+1), 1:(p+N+1)]      # remove border
+  # remove border and set to 0 for zero-support values
+  vc <- matrix(0, nrow=p+N+1, ncol=p+N+1)
+  vc[hess_idx, hess_idx] <- bvc[1:(p+length(spt)), 1:(p+length(spt))]     
 @}
 
 

@@ -84,7 +84,7 @@ For the purpose of identifiability, the mean of marginal probability $\{ q_{y,N}
 \mbox{}\verb@@\\
 \mbox{}\verb@    @\hbox{$\langle\,${\itshape Create model matrix from formula and data}\nobreak\ {\footnotesize \NWlink{nuweb2}{2}}$\,\rangle$}\verb@@\\
 \mbox{}\verb@    @\\
-\mbox{}\verb@    data_object <- list(model_matrix=mm, resp=Y, n=rowSums(Y), weights=weights, offset=offset, maxN=N)@\\
+\mbox{}\verb@    data_object <- list(model_matrix=mm, resp=Y, n=rowSums(Y), weights=weights, offset=offset, maxN=N, spt=0:N)@\\
 \mbox{}\verb@    @\\
 \mbox{}\verb@    @\hbox{$\langle\,${\itshape Fit model}\nobreak\ {\footnotesize \NWlink{nuweb7}{7}}$\,\rangle$}\verb@@\\
 \mbox{}\verb@@\\
@@ -419,9 +419,10 @@ We define internal function to calculate predicted values and the log-likelihood
 \mbox{}\verb@    mu <- spglm_pred_mean(beta=beta, data_object=data_object, link=link)@\\
 \mbox{}\verb@    N <- data_object$maxN@\\
 \mbox{}\verb@    nobs <- nrow(data_object$model_matrix)@\\
+\mbox{}\verb@    spt <- data_object$spt@\\
 \mbox{}\verb@    @\\
 \mbox{}\verb@    # ySptIndex is only used to calculate the log-likelihood, which we will not be using@\\
-\mbox{}\verb@    th <- getTheta(spt=(0:N)/N, f0=f0, mu=mu, weights=data_object$weights, ySptIndex=rep(1, nobs),@\\
+\mbox{}\verb@    th <- getTheta(spt=spt/N, f0=f0[spt+1], mu=mu, weights=data_object$weights, ySptIndex=rep(1, nobs),@\\
 \mbox{}\verb@                   thetaStart=NULL, thetaControl=theta.control())@\\
 \mbox{}\verb@    th$theta@\\
 \mbox{}\verb@}@\\
@@ -431,13 +432,19 @@ We define internal function to calculate predicted values and the log-likelihood
 \mbox{}\verb@    mu <- spglm_pred_mean(beta=beta, data_object=data_object, link=link)@\\
 \mbox{}\verb@    N <- data_object$maxN@\\
 \mbox{}\verb@    nobs <- nrow(data_object$model_matrix)@\\
-\mbox{}\verb@    @\\
+\mbox{}\verb@    spt <- data_object$spt@\\
+\mbox{}\verb@   @\\
 \mbox{}\verb@    # ySptIndex is only used to calculate the log-likelihood, which we will not be using@\\
-\mbox{}\verb@    th <- getTheta(spt=(0:N)/N, f0=f0, mu=mu, weights=data_object$weights, ySptIndex=rep(1, nobs),@\\
+\mbox{}\verb@    th <- getTheta(spt=spt/N, f0=f0[spt+1], mu=mu, weights=data_object$weights, ySptIndex=rep(1, nobs),@\\
 \mbox{}\verb@                   thetaStart=NULL, thetaControl=theta.control())@\\
 \mbox{}\verb@                   @\\
-\mbox{}\verb@    hp <- sapply(0:N, function(t)dhyper(x=data_object$resp[,1], m=data_object$n, n=N-data_object$n, k=t))   @\\
-\mbox{}\verb@    probs <- rowSums(t(th$fTilt) * hp)@\\
+\mbox{}\verb@    hp <- sapply(0:N, function(t)dhyper(x=data_object$resp[,1], m=data_object$n, n=N-data_object$n, k=t))  @\\
+\mbox{}\verb@    @\\
+\mbox{}\verb@    # fill in 0's for values with no support@\\
+\mbox{}\verb@    fTilt <- matrix(0, ncol = nobs, nrow = N+1)@\\
+\mbox{}\verb@    fTilt[spt+1,] <- th$fTilt@\\
+\mbox{}\verb@    #probs <- rowSums(t(th$fTilt) * hp)@\\
+\mbox{}\verb@    probs <- rowSums(t(fTilt) * hp)@\\
 \mbox{}\verb@    probs@\\
 \mbox{}\verb@}@\\
 \mbox{}\verb@@\\
@@ -468,7 +475,8 @@ It is difficult to utilize the observed log-likelihood directly for parameter es
 \mbox{}\verb@@\\
 \mbox{}\verb@ @\hbox{$\langle\,${\itshape Set starting values}\nobreak\ {\footnotesize \NWlink{nuweb10a}{10a}}$\,\rangle$}\verb@@\\
 \mbox{}\verb@ @\hbox{$\langle\,${\itshape Set up for E-step}\nobreak\ {\footnotesize \NWlink{nuweb8}{8}}$\,\rangle$}\verb@@\\
-\mbox{}\verb@ @\\
+\mbox{}\verb@ @\hbox{$\langle\,${\itshape Identify zero support}\nobreak\ {\footnotesize \NWlink{nuweb10b}{10b}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@@\\
 \mbox{}\verb@ iter <- 0@\\
 \mbox{}\verb@ difference <- 100@\\
 \mbox{}\verb@ while (iter < control$maxit & difference > control$eps) {@\\
@@ -483,7 +491,7 @@ It is difficult to utilize the observed log-likelihood directly for parameter es
 \mbox{}\verb@    difference <- abs(llik - llikPre)@\\
 \mbox{}\verb@  }@\\
 \mbox{}\verb@  @\\
-\mbox{}\verb@  @\hbox{$\langle\,${\itshape Calculate standard errors}\nobreak\ {\footnotesize \NWlink{nuweb10b}{10b}}$\,\rangle$}\verb@@\\
+\mbox{}\verb@  @\hbox{$\langle\,${\itshape Calculate standard errors}\nobreak\ {\footnotesize \NWlink{nuweb?}{?}}$\,\rangle$}\verb@@\\
 \mbox{}\verb@  @\\
 \mbox{}\verb@@{\NWsep}
 \end{list}
@@ -535,6 +543,7 @@ Equation \ref{E:logLikelihoodCompleteMapFromObs} can be interpreted as the log-l
 \mbox{}\verb@  mm2 <- mm[Ycomb[,"i"], ,drop=FALSE]@\\
 \mbox{}\verb@  weights2 <- weights[Ycomb[,"i"]]@\\
 \mbox{}\verb@  offset2 <- offset[Ycomb[,"i"]]@\\
+\mbox{}\verb@@\\
 \mbox{}\verb@@{\NWsep}
 \end{list}
 \vspace{-1.5ex}
@@ -577,7 +586,7 @@ The value of $q_{y,N}^{(k)}(\boldsymbol{Z}_i; \boldsymbol{\beta}^{(k)})$ can be 
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
 \mbox{}\verb@  # convert fTiltMatrix to long vector, watching out for potentially different support@\\
-\mbox{}\verb@  y_idx <- match(Ycomb[,"y"], spt)@\\
+\mbox{}\verb@  y_idx <- match(Ycomb[,"y"], 0:N)@\\
 \mbox{}\verb@  fTilt2 <- ifelse(!is.na(y_idx), fTiltMatrix[cbind(Ycomb[,"i"], y_idx)], 0)@\\
 \mbox{}\verb@  @\\
 \mbox{}\verb@  # numerator of weights@\\
@@ -611,17 +620,17 @@ Default settings are used for the algorithm, except the starting values is updat
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
 \mbox{}\verb@  gldrmControl0 <- gldrm.control(returnfTiltMatrix = TRUE, returnf0ScoreInfo = FALSE, print=FALSE,@\\
-\mbox{}\verb@                                betaStart = betasPre, f0Start = referencef0Pre)@\\
+\mbox{}\verb@                                betaStart = betasPre, f0Start = referencef0Pre[spt+1])@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@  mod <- gldrmFit(x = mm2, y=Ycomb[,"y"]/N, linkfun=link$linkfun, linkinv = link$linkinv,@\\
 \mbox{}\verb@                  mu.eta = link$mu.eta, mu0 = mu0, offset = offset2, weights = pp, @\\
 \mbox{}\verb@                  gldrmControl = gldrmControl0,  thetaControl=theta.control(),@\\
 \mbox{}\verb@                  betaControl=beta.control(), f0Control=f0.control())@\\
 \mbox{}\verb@                  @\\
-\mbox{}\verb@  fTiltMatrix <- mod$fTiltMatrix[obs_start,]@\\
+\mbox{}\verb@  fTiltMatrix[,spt+1] <- mod$fTiltMatrix[obs_start,]@\\
 \mbox{}\verb@  betas <- mod$beta@\\
-\mbox{}\verb@  referencef0 <- mod$f0@\\
-\mbox{}\verb@  spt <- round(mod$spt * N)@\\
+\mbox{}\verb@  referencef0[spt+1] <- mod$f0@\\
+\mbox{}\verb@#  spt <- round(mod$spt * N)@\\
 \mbox{}\verb@  llik <- c(log(rowSums(fTiltMatrix * hp)) %*% weights)@\\
 \mbox{}\verb@@{\NWsep}
 \end{list}
@@ -647,11 +656,38 @@ We start the regression coefficients are set to 0, so $q^{(0)}_N$ would be the o
 \mbox{}\verb@                    trt="Trt", clustersize="ClusterSize", nresp="NResp", freq="Freq")@\\
 \mbox{}\verb@  est <- CorrBin::mc.est(pooled)@\\
 \mbox{}\verb@  referencef0 <- est$Prob[est$ClusterSize == N]@\\
-\mbox{}\verb@  # ensure all positive values@\\
-\mbox{}\verb@  referencef0 <- (referencef0 + 1e-6)/(1+(N+1)*1e-6)@\\
 \mbox{}\verb@  @\\
-\mbox{}\verb@  fTiltMatrix <- matrix(rep(referencef0, times=nobs), byrow=TRUE, nrow=nobs, ncol=N+1)@\\
-\mbox{}\verb@  spt <- 0:N@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@@{\NWsep}
+\end{list}
+\vspace{-1.5ex}
+\footnotesize
+\begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
+\item \NWtxtMacroRefIn\ \NWlink{nuweb7}{7}.
+
+\item{}
+\end{list}
+\vspace{4ex}
+\end{flushleft}
+Values of $y$ that cannot be a possible number of responses in a cluster of size $N$ corresponding to an observed cluster will always have $q_{y,N}=0$, so they need to be removed from the support during the `gldrm` estimation process (which will use $\log q_{y,N}$)
+
+\begin{flushleft} \small\label{scrap12}\raggedright\small
+\NWtarget{nuweb10b}{} $\langle\,${\itshape Identify zero support}\nobreak\ {\footnotesize {10b}}$\,\rangle\equiv$
+\vspace{-1ex}
+\begin{list}{}{} \item
+\mbox{}\verb@@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  # identify possible y-values@\\
+\mbox{}\verb@  spt <- sort(unique(Ycomb[,"y"]))@\\
+\mbox{}\verb@  data_object$spt <- spt@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  # ensure all positive values within support@\\
+\mbox{}\verb@  referencef0[spt+1] <- referencef0[spt+1] + 1e-6@\\
+\mbox{}\verb@  referencef0 <- referencef0 / sum(referencef0)@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  fTiltMatrix <- matrix(rep(referencef0, times=nobs), byrow=TRUE, @\\
+\mbox{}\verb@      nrow=nobs, ncol=N+1)@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@  if (is.null(mu0))@\\
 \mbox{}\verb@    mu0 <- weighted.mean(Y[,1]/rowSums(Y), weights)@\\
@@ -677,8 +713,8 @@ We start the regression coefficients are set to 0, so $q^{(0)}_N$ would be the o
 
 We will use numeric derivation to obtain the hessian of the observed data likelihood. The variance-covariance matrix can be estimated as the inverse of the negative hessian. The sum-to-one and fixed-mean constraints of the reference distribution are included by expanding the hessian to a bordered hessian before inversion by including the derivatives of the constraints (this can be derived based on the Lagrange multiplier method). The reference distribution is included in the hessian on the log-scale, and is multiplied by the gradient before inversion to revert to the original scale.
 
-\begin{flushleft} \small\label{scrap12}\raggedright\small
-\NWtarget{nuweb10b}{} $\langle\,${\itshape Calculate standard errors}\nobreak\ {\footnotesize {10b}}$\,\rangle\equiv$
+\begin{flushleft} \small\label{scrap13}\raggedright\small
+\NWtarget{nuweb?}{} $\langle\,${\itshape Calculate standard errors}\nobreak\ {\footnotesize {?}}$\,\rangle\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -687,19 +723,22 @@ We will use numeric derivation to obtain the hessian of the observed data likeli
 \mbox{}\verb@  }@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@  hess <- numDeriv::hessian(func=ll,  x=c(betas, log(referencef0)))@\\
+\mbox{}\verb@  hess_idx <- c(1:p, p+spt+1) # betas and f0 elements with non-zero support@\\
 \mbox{}\verb@  @\\
 \mbox{}\verb@  # revert to unlogged f0@\\
-\mbox{}\verb@  grad <- c(rep(1, p), 1/referencef0)@\\
-\mbox{}\verb@  hess1 <- diag(grad) %*% hess %*% diag(grad)@\\
+\mbox{}\verb@  grad <- c(rep(1, p), 1/referencef0[spt+1])@\\
+\mbox{}\verb@  hess1 <- diag(grad) %*% hess[hess_idx, hess_idx] %*% diag(grad)@\\
 \mbox{}\verb@  @\\
 \mbox{}\verb@  # create bordered hessian@\\
-\mbox{}\verb@  border1 <- c(rep(0, p), rep(1, N+1))  # gradient of sum-to-one constraint@\\
-\mbox{}\verb@  border2 <- c(rep(0, p), 0:N)          # gradient of fixed-mean constraint@\\
+\mbox{}\verb@  border1 <- c(rep(0, p), rep(1, length(spt)))  # gradient of sum-to-one constraint@\\
+\mbox{}\verb@  border2 <- c(rep(0, p), spt)          # gradient of fixed-mean constraint@\\
 \mbox{}\verb@  bhess <- rbind(cbind(hess1, border1, border2), c(border1,0,0), c(border2,0,0))@\\
 \mbox{}\verb@  @\\
 \mbox{}\verb@  # calculate variance-covariance matrix@\\
 \mbox{}\verb@  bvc <- solve(-bhess)@\\
-\mbox{}\verb@  vc <- bvc[1:(p+N+1), 1:(p+N+1)]      # remove border@\\
+\mbox{}\verb@  # remove border and set to 0 for zero-support values@\\
+\mbox{}\verb@  vc <- matrix(0, nrow=p+N+1, ncol=p+N+1)@\\
+\mbox{}\verb@  vc[hess_idx, hess_idx] <- bvc[1:(p+length(spt)), 1:(p+length(spt))]     @\\
 \mbox{}\verb@@{\NWsep}
 \end{list}
 \vspace{-1.5ex}
