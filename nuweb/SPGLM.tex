@@ -84,7 +84,8 @@ For the purpose of identifiability, the mean of marginal probability $\{ q_{y,N}
 \mbox{}\verb@@\\
 \mbox{}\verb@    @\hbox{$\langle\,${\itshape Create model matrix from formula and data}\nobreak\ {\footnotesize \NWlink{nuweb2}{2}}$\,\rangle$}\verb@@\\
 \mbox{}\verb@    @\\
-\mbox{}\verb@    data_object <- list(model_matrix=mm, resp=Y, n=rowSums(Y), weights=weights, offset=offset, maxN=N, spt=0:N)@\\
+\mbox{}\verb@    data_object <- list(model_matrix=mm, resp=Y, n=rowSums(Y), weights=weights, offset=offset, @\\
+\mbox{}\verb@                        maxN=N, spt=0:N)@\\
 \mbox{}\verb@    @\\
 \mbox{}\verb@    @\hbox{$\langle\,${\itshape Fit model}\nobreak\ {\footnotesize \NWlink{nuweb7}{7}}$\,\rangle$}\verb@@\\
 \mbox{}\verb@@\\
@@ -521,11 +522,41 @@ where $q_{s_i,N}$ is the probability of achieving $s_i$ events in a cluster of s
 
 Equation \ref{E:logLikelihoodCompleteMapFromObs} can be interpreted as the log-likelihood of a model with fixed cluster size $N$ for an expanded data set: each observation with cluster size $N_i$ and number of responses $y_i$ is expanded to $(N+1)$ replicates with $0, 1, \ldots, N$, responses, respectively.
 
+To ensure that the range of possible response probabilities covers 0 -- 1, we need to ensure that clusters with 0 and $N$ responses both are possible, buy adding small-weight fake clusters if needed.
+
 \begin{flushleft} \small\label{scrap8}\raggedright\small
 \NWtarget{nuweb8}{} $\langle\,${\itshape Set up for E-step}\nobreak\ {\footnotesize {8}}$\,\rangle\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  # identify if fake observations are needed @\\
+\mbox{}\verb@  # we need at least one observation with 0 events and one with 0 non-events@\\
+\mbox{}\verb@  fakeID <- numeric()@\\
+\mbox{}\verb@  # save original values@\\
+\mbox{}\verb@  Y0 <- Y@\\
+\mbox{}\verb@  mm0 <- mm@\\
+\mbox{}\verb@  offset0 <- offset@\\
+\mbox{}\verb@  weights0 <- weights@\\
+\mbox{}\verb@  nobs0 <- nobs@\\
+\mbox{}\verb@ @\\
+\mbox{}\verb@  if (!(0 %in% Y[,1])){  # 0 events@\\
+\mbox{}\verb@    Y <- rbind(Y, c(0, N))@\\
+\mbox{}\verb@    mm <- rbind(mm, colMeans(mm0))@\\
+\mbox{}\verb@    offset <- c(offset, mean(offset0))@\\
+\mbox{}\verb@    weights <- c(weights, 1e-7)@\\
+\mbox{}\verb@    nobs <- nobs + 1@\\
+\mbox{}\verb@    fakeID <- c(fakeID, nobs)@\\
+\mbox{}\verb@  }@\\
+\mbox{}\verb@  if (!(0 %in% Y[,2])){ # 0 non-events@\\
+\mbox{}\verb@    Y <- rbind(Y, c(N, 0))@\\
+\mbox{}\verb@    mm <- rbind(mm, colMeans(mm0))@\\
+\mbox{}\verb@    offset <- c(offset, mean(offset0))@\\
+\mbox{}\verb@    weights <- c(weights, 1e-7)@\\
+\mbox{}\verb@    nobs <- nobs + 1@\\
+\mbox{}\verb@    fakeID <- c(fakeID, nobs)@\\
+\mbox{}\verb@  }@\\
+\mbox{}\verb@  @\\
 \mbox{}\verb@  # replace each cluster with N+1 clusters of size N@\\
 \mbox{}\verb@  new <- cbind(y=0:N)@\\
 \mbox{}\verb@  rep_idx <- rep(1:nrow(Y), each=nrow(new))@\\
@@ -681,6 +712,8 @@ Values of $y$ that cannot be a possible number of responses in a cluster of size
 \mbox{}\verb@  spt <- sort(unique(Ycomb[,"y"]))@\\
 \mbox{}\verb@  data_object$spt <- spt@\\
 \mbox{}\verb@  @\\
+\mbox{}\verb@  #real_spt <- sort(unique(Ycomb[!(Ycomb[,"i"] %in% fakeID),"y"]))@\\
+\mbox{}\verb@  @\\
 \mbox{}\verb@  # ensure all positive values within support@\\
 \mbox{}\verb@  referencef0[spt+1] <- referencef0[spt+1] + 1e-6@\\
 \mbox{}\verb@  referencef0 <- referencef0 / sum(referencef0)@\\
@@ -718,12 +751,15 @@ We will use numeric derivation to obtain the hessian of the observed data likeli
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
+\mbox{}\verb@  data_object_mod <- list(model_matrix = mm, resp=Y, n=rowSums(Y), @\\
+\mbox{}\verb@                          weights = weights, offset = offset, maxN = N, @\\
+\mbox{}\verb@                          spt = spt)@\\
 \mbox{}\verb@  ll <- function(x){@\\
-\mbox{}\verb@    spglm_loglik(beta=x[1:p], f0 = exp(x[-(1:p)]), data_object=data_object, link=link)@\\
+\mbox{}\verb@    spglm_loglik(beta=x[1:p], f0 = exp(x[-(1:p)]), data_object=data_object_mod, link=link)@\\
 \mbox{}\verb@  }@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@  hess <- numDeriv::hessian(func=ll,  x=c(betas, log(referencef0)))@\\
-\mbox{}\verb@  hess_idx <- c(1:p, p+spt+1) # betas and f0 elements with non-zero support@\\
+\mbox{}\verb@  hess_idx <- c(1:p, p+spt+1) # betas and f0 elements with non-zero real support@\\
 \mbox{}\verb@  @\\
 \mbox{}\verb@  # revert to unlogged f0@\\
 \mbox{}\verb@  grad <- c(rep(1, p), 1/referencef0[spt+1])@\\

@@ -67,7 +67,8 @@ spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL
       
     
     
-    data_object <- list(model_matrix=mm, resp=Y, n=rowSums(Y), weights=weights, offset=offset, maxN=N, spt=0:N)
+    data_object <- list(model_matrix=mm, resp=Y, n=rowSums(Y), weights=weights, offset=offset, 
+                        maxN=N, spt=0:N)
     
     
      
@@ -80,6 +81,34 @@ spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL
        
      
      
+       
+       # identify if fake observations are needed 
+       # we need at least one observation with 0 events and one with 0 non-events
+       fakeID <- numeric()
+       # save original values
+       Y0 <- Y
+       mm0 <- mm
+       offset0 <- offset
+       weights0 <- weights
+       nobs0 <- nobs
+      
+       if (!(0 %in% Y[,1])){  # 0 events
+         Y <- rbind(Y, c(0, N))
+         mm <- rbind(mm, colMeans(mm0))
+         offset <- c(offset, mean(offset0))
+         weights <- c(weights, 1e-7)
+         nobs <- nobs + 1
+         fakeID <- c(fakeID, nobs)
+       }
+       if (!(0 %in% Y[,2])){ # 0 non-events
+         Y <- rbind(Y, c(N, 0))
+         mm <- rbind(mm, colMeans(mm0))
+         offset <- c(offset, mean(offset0))
+         weights <- c(weights, 1e-7)
+         nobs <- nobs + 1
+         fakeID <- c(fakeID, nobs)
+       }
+       
        # replace each cluster with N+1 clusters of size N
        new <- cbind(y=0:N)
        rep_idx <- rep(1:nrow(Y), each=nrow(new))
@@ -104,6 +133,8 @@ spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL
        # identify possible y-values
        spt <- sort(unique(Ycomb[,"y"]))
        data_object$spt <- spt
+       
+       #real_spt <- sort(unique(Ycomb[!(Ycomb[,"i"] %in% fakeID),"y"]))
        
        # ensure all positive values within support
        referencef0[spt+1] <- referencef0[spt+1] + 1e-6
@@ -166,12 +197,15 @@ spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL
       }
       
       
+        data_object_mod <- list(model_matrix = mm, resp=Y, n=rowSums(Y), 
+                                weights = weights, offset = offset, maxN = N, 
+                                spt = spt)
         ll <- function(x){
-          spglm_loglik(beta=x[1:p], f0 = exp(x[-(1:p)]), data_object=data_object, link=link)
+          spglm_loglik(beta=x[1:p], f0 = exp(x[-(1:p)]), data_object=data_object_mod, link=link)
         }
 
         hess <- numDeriv::hessian(func=ll,  x=c(betas, log(referencef0)))
-        hess_idx <- c(1:p, p+spt+1) # betas and f0 elements with non-zero support
+        hess_idx <- c(1:p, p+spt+1) # betas and f0 elements with non-zero real support
         
         # revert to unlogged f0
         grad <- c(rep(1, p), 1/referencef0[spt+1])
