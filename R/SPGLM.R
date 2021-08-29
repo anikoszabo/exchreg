@@ -396,3 +396,40 @@ spglm_loglik <- function(beta, f0, data_object, link){
     llik <- log(probs) %*% data_object$weights
     c(llik)
 }
+
+#' Simulate data that follows an SPGLM 
+#'
+#' 
+#' @param n vector of cluster-sizes for the simulated data.
+#' @param means vector of mean event probability for each cluster. Values should be between 0 and 1. 
+#' @param q0 the backbone probability distribution of number of events in a cluster of maximal size. 
+#' @return a data frame with columns `Mean`, `ClusterSize`, `NResp`
+#' @export
+#' @importFrom stats rhyper
+
+ran.spglm <- function(n, means, q0){
+
+  if (length(n) != length(means)) stop("`n` and `means` should have the same length")
+  if (any(means < 0) || any(means > 1)) stop("All values of `means` should be between 0 and 1")
+  if (any(q0 < 0)) stop("All values of `q0` should be non-negative")
+  
+  q0 <- q0 / sum(q0)
+  N <- length(q0) - 1
+  spt <- which(q0 > 0) - 1
+  nobs <- length(n)
+  
+  # get event probabilities at max clustersize for each cluster
+  th <- getTheta(spt = spt/N, f0 = q0[spt+1], mu = means, 
+                 weights = rep(1, nobs), ySptIndex = rep(1, nobs))
+                 
+  probmat <- t(th$fTilt)
+  
+  # random number of events at max clustersize
+  nevents <- apply(probmat, 1, function(pvec)sample(x=spt, size=1, replace=FALSE, prob=pvec))
+  
+  # random number of events in actual clusters using marginal compatibility
+  nresp <- rhyper(nobs, m=nevents, n=N-nevents, k=n)
+  
+  res <- data.frame(Mean = means, ClusterSize = n, NResp = nresp)
+  res
+}

@@ -105,7 +105,7 @@ For the purpose of identifiability, the mean of marginal probability $\{ q_{y,N}
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb3}{, 3}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}\NWlink{nuweb6}{, 6}.
+\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb3}{, 3}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}\NWlink{nuweb6}{, 6}\NWlink{nuweb?}{, ?}.
 
 \item{}
 \end{list}
@@ -219,7 +219,7 @@ First, define a printing method which does not show the saved data and model mat
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb3}{, 3}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}\NWlink{nuweb6}{, 6}.
+\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb3}{, 3}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}\NWlink{nuweb6}{, 6}\NWlink{nuweb?}{, ?}.
 
 \item{}
 \end{list}
@@ -277,7 +277,7 @@ Custom extractors for the coefficients and variance-covariance matrix, with opti
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb3}{, 3}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}\NWlink{nuweb6}{, 6}.
+\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb3}{, 3}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}\NWlink{nuweb6}{, 6}\NWlink{nuweb?}{, ?}.
 
 \item{}
 \end{list}
@@ -375,7 +375,7 @@ The prediction method will predict for a variety of scenarios:
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb3}{, 3}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}\NWlink{nuweb6}{, 6}.
+\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb3}{, 3}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}\NWlink{nuweb6}{, 6}\NWlink{nuweb?}{, ?}.
 
 \item{}
 \end{list}
@@ -459,7 +459,7 @@ We define internal function to calculate predicted values and the log-likelihood
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb3}{, 3}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}\NWlink{nuweb6}{, 6}.
+\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb3}{, 3}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}\NWlink{nuweb6}{, 6}\NWlink{nuweb?}{, ?}.
 
 \item{}
 \end{list}
@@ -745,6 +745,60 @@ We will use numeric derivation to obtain the hessian of the observed data likeli
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
 \item \NWtxtMacroRefIn\ \NWlink{nuweb7}{7}.
+
+\item{}
+\end{list}
+\vspace{4ex}
+\end{flushleft}
+\section{Simulate data from semi-parametric model}
+
+\begin{flushleft} \small\label{scrap14}\raggedright\small
+\NWtarget{nuweb?}{} \verb@"../R/SPGLM.R"@\nobreak\ {\footnotesize {?}}$\equiv$
+\vspace{-1ex}
+\begin{list}{}{} \item
+\mbox{}\verb@@\\
+\mbox{}\verb@#' Simulate data that follows an SPGLM @\\
+\mbox{}\verb@#'@\\
+\mbox{}\verb@#' @\\
+\mbox{}\verb@#' @{\tt @}\verb@param n vector of cluster-sizes for the simulated data.@\\
+\mbox{}\verb@#' @{\tt @}\verb@param means vector of mean event probability for each cluster. Values should be between 0 and 1. @\\
+\mbox{}\verb@#' @{\tt @}\verb@param q0 the backbone probability distribution of number of events in a cluster of maximal size. @\\
+\mbox{}\verb@#' @{\tt @}\verb@return a data frame with columns `Mean`, `ClusterSize`, `NResp`@\\
+\mbox{}\verb@#' @{\tt @}\verb@export@\\
+\mbox{}\verb@#' @{\tt @}\verb@importFrom stats rhyper@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@ran.spglm <- function(n, means, q0){@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@  if (length(n) != length(means)) stop("`n` and `means` should have the same length")@\\
+\mbox{}\verb@  if (any(means < 0) || any(means > 1)) stop("All values of `means` should be between 0 and 1")@\\
+\mbox{}\verb@  if (any(q0 < 0)) stop("All values of `q0` should be non-negative")@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  q0 <- q0 / sum(q0)@\\
+\mbox{}\verb@  N <- length(q0) - 1@\\
+\mbox{}\verb@  spt <- which(q0 > 0) - 1@\\
+\mbox{}\verb@  nobs <- length(n)@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  # get event probabilities at max clustersize for each cluster@\\
+\mbox{}\verb@  th <- getTheta(spt = spt/N, f0 = q0[spt+1], mu = means, @\\
+\mbox{}\verb@                 weights = rep(1, nobs), ySptIndex = rep(1, nobs))@\\
+\mbox{}\verb@                 @\\
+\mbox{}\verb@  probmat <- t(th$fTilt)@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  # random number of events at max clustersize@\\
+\mbox{}\verb@  nevents <- apply(probmat, 1, function(pvec)sample(x=spt, size=1, replace=FALSE, prob=pvec))@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  # random number of events in actual clusters using marginal compatibility@\\
+\mbox{}\verb@  nresp <- rhyper(nobs, m=nevents, n=N-nevents, k=n)@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  res <- data.frame(Mean = means, ClusterSize = n, NResp = nresp)@\\
+\mbox{}\verb@  res@\\
+\mbox{}\verb@}@\\
+\mbox{}\verb@@{\NWsep}
+\end{list}
+\vspace{-1.5ex}
+\footnotesize
+\begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
+\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb3}{, 3}\NWlink{nuweb4}{, 4}\NWlink{nuweb5}{, 5}\NWlink{nuweb6}{, 6}\NWlink{nuweb?}{, ?}.
 
 \item{}
 \end{list}

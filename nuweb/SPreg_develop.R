@@ -85,7 +85,9 @@ mll <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, data=boric_acid,
              link=list(linkfun=laplace.link, linkinv=laplace.invlink, mu.eta=laplace.mu.eta),
             weights=boric_acid$Freq, control = list(eps=1e-5, maxit=1000))
 
-
+# random data
+dd <- ran.spglm(1:5, means=seq(0.2, 0.6, length.out = 5), q0 = dbinom(0:5, size=5, prob=0.3))
+dd
 
 ######### Testing wGLDRM
 run_gldrm <- 
