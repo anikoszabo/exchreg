@@ -126,30 +126,59 @@ ggplot(fits, aes(x=NResp, y=Prob, colour=Model)) +
 
 Goal:
 
- * simulate data with either a beta-binomial or a q-power backbone distribution that follows a semi-parametric logistic regression model
+ * simulate data with four settings:
+ 
+  1. Both the beta-binomial and semi-parameteric model are correct - a binomial backbone, which belongs to the exponential family
+  2. Only the beta-binomial model is correct - generated from a beta-binomial distribution
+  3. Only the semi-parametric model is correct - generated from the spglm, with a zero-inflated beta-binomial backbone
+  4. Neither model is correct - generated from a zero-inflated beta-binomial distribution
  * fit the data using our semi-parametric regression model, beta-binomial regression (potentially misspecified distribution), and GEE (marginal only)
  
 
+
 ## Simulating data
 
-The dose levels will have mean 0.2, 0.4, 0.6, and 0.8, and intra-cluster correlation 0.4.
+We will have one binary predictor $X_1 \sim Bern(0.5)$ with $beta_1=0.5$ and one continuous predictor $X_2 \sim N(0,1)$ with $\beta_2 = 1$. The cluster size distribution will be binomial.
 
 ```{r SimOne}
-generate_data <- function(pdf.fun, maxClusterSize = 10, aveClusterSize = 9,
-                          doseLevels = 4, nPerDose = 25){
-  # generate binomially distributed frequencies for each cluster-size
-  ss <- expand.grid(Trt = 1:doseLevels, ClusterSize = 0:maxClusterSize) %>%
-    group_by(Trt) %>%
-    mutate(Freq = rmultinom(1, size=nPerDose, 
-                            prob=dbinom(ClusterSize, size=maxClusterSize, 
-                                        prob=aveClusterSize / maxClusterSize))) %>%
-    filter(Freq > 0)
+beta_correct <- c(0, 0.5, 1)
+sim_covariates <- function(n, maxClusterSize = 10, aveClusterSize = 7, beta=beta_correct){
+  x1 <- rbinom(n, size=1, prob=0.5)
+  x2 <- rnorm(n)
+  lp <- cbind(1, x1, x2) %*% beta
+  mns <- 1/(1+exp(-lp))
+  
+  cs <- rbinom(n, size=maxClusterSize, prob=aveClusterSize/maxClusterSize)
+  
+  data.frame(ClusterSize = cs, X1=x1, X2=x2, p_resp = mns)
+}
 
-  res <- ran.CBData(sample.sizes = ss, 
-                p.gen.fun = function(g) 0.2*g,
-                rho.gen.fun = function(g) 0.4,
-                pdf.fun = pdf.fun)
-  res$Z <- rnorm(nrow(res), mean=0, sd=1)  
+# add random response counts using SPGLM model
+add_response_spglm <- function(cov_data, q0){
+  # cov_data should come from sim_covariates
+  
+  simres <- ran.spglm(n=cov_data$ClusterSize, means = cov_data$p_resp, q0 = q0)
+  res <- cov_data
+  res$NResp <- simres$NResp
+  res$Trt <- "All"
+  res$Freq <- 1
+  class(res) <- c("CBData", class(res))
+  res
+}
+
+# add random response counts from zero-inflated beta-binomial 
+add_response_zoibb <- function(cov_data, pstr0, rho){
+  # cov_data should come from sim_covariates
+  
+  res <- cov_data
+  res$NResp <- rzoibetabinom(n = nrow(cov_data),
+                             size = cov_data$ClusterSize,
+                             prob = cov_data$p_resp,
+                             rho = rho,
+                             pstr0 = pstr0)
+  res$Trt <- "All"
+  res$Freq <- 1
+  class(res) <- c("CBData", class(res))
   res
 }
 ```
@@ -160,14 +189,14 @@ generate_data <- function(pdf.fun, maxClusterSize = 10, aveClusterSize = 9,
 run_analysis <- function(dat){
   #GEE
   dat_long <- unwrap(dat)
-  res_gee <- geeglm(Resp ~ Trt + Z, data=dat_long, id = ID, family=binomial,
+  res_gee <- geeglm(Resp ~ X1 + X2, data=dat_long, id = ID, family=binomial,
                  corstr = "exch")
   #Beta-binomial
-  res_bb <- vgam(cbind(NResp, ClusterSize - NResp) ~ Trt + Z, weights = Freq,
+  res_bb <- vgam(cbind(NResp, ClusterSize - NResp) ~  X1 + X2, weights = Freq,
                  data=dat, family =  betabinomial(lmu="logitlink"))
   #SPGLM
   op <- options(warn=-1)
-  res_spglm <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt + Z, data=dat,
+  res_spglm <- spglm(cbind(NResp, ClusterSize - NResp) ~ X1 + X2, data=dat,
                    weights  = Freq)
   options(op)
   
@@ -192,25 +221,49 @@ run_analysis <- function(dat){
 
 
 
-```{r ActualSim}
+```{r ActualSim1, warning=FALSE}
 R <- 50
 
-# beta-binomial PDF
-simBB.list <- 
+# Scenario 1: binomial PDF
+sim1 <- 
   replicate(R,
-            {simd <- generate_data(betabin.pdf);
+            {simd <- sim_covariates(100) %>% add_response_zoibb(pstr=0, rho=0);
              run_analysis(simd)}, 
-            simplify = FALSE)
+            simplify = FALSE)  %>%
+   bind_rows(.id="ID")
+```
 
-# q-power PDF
-simQP.list <- 
+```{r ActualSim2, warning=FALSE}
+# Scenario 2: binomial PDF
+sim2 <- 
   replicate(R,
-            {simd <- generate_data(qpower.pdf);
+            {simd <- sim_covariates(100) %>% add_response_zoibb(pstr=0, rho=0.3);
              run_analysis(simd)}, 
-            simplify = FALSE)
-         
-simBB <- bind_rows(simBB.list, .id="ID")
-simQP <- bind_rows(simQP.list, .id="ID")
+            simplify = FALSE) %>%
+   bind_rows(.id="ID")
+
+```
+
+```{r ActualSim3, warning=FALSE}
+# Scenario 3: SPGLM with zero-inflated betabinomial backbone
+sim3 <- 
+  replicate(R,
+            {simd <- sim_covariates(100) %>% 
+              add_response_spglm(q0 = dzoibetabinom(0:10, size=10, prob=0.4, rho = 0.3, pstr0 = 0.1));
+             run_analysis(simd)}, 
+            simplify = FALSE)  %>%
+   bind_rows(.id="ID")
+
+```
+
+```{r ActualSim4, warning=FALSE}
+# Scenario 4: zero-inflated betabinomial 
+sim4 <- 
+  replicate(R,
+            {simd <- sim_covariates(100) %>% add_response_zoibb(pstr=0.1, rho=0.3);
+             run_analysis(simd)}, 
+            simplify = FALSE)  %>%
+   bind_rows(.id="ID")
 
 ```
 
@@ -219,13 +272,15 @@ simQP <- bind_rows(simQP.list, .id="ID")
 ## Compare results
 
 ```{r Compare}
-comb <- bind_rows(`Beta-Binomial` = simBB, `q-Power`= simQP, .id="Generator") 
+comb <- bind_rows(`Both correct` = sim1, 
+                  `BB correct`= sim2,
+                  `SPGLM correct` = sim3, 
+                  `Neither correct` = sim4,
+                  .id="Generator") 
 
 # get correct values of parameters on a logit-model scale
-mns <- c(0.2, 0.4, 0.6, 0.8)
-logit.mns <- log(mns/(1-mns))
-correct <- tibble(Term = c("(Intercept)","Trt2","Trt3", "Trt4","Z"),
-                  Correct = c(logit.mns[1], logit.mns[-1] - logit.mns[1], 0))
+correct <- tibble(Term = c("(Intercept)","X1","X2"),
+                  Correct = beta_correct)
 comb <- left_join(comb, correct, by="Term")
 
 scomb <- comb %>%
