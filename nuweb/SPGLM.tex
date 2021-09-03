@@ -771,10 +771,15 @@ We will use numeric derivation to obtain the hessian of the observed data likeli
 \mbox{}\verb@  bhess <- rbind(cbind(hess1, border1, border2), c(border1,0,0), c(border2,0,0))@\\
 \mbox{}\verb@  @\\
 \mbox{}\verb@  # calculate variance-covariance matrix@\\
-\mbox{}\verb@  bvc <- solve(-bhess)@\\
-\mbox{}\verb@  # remove border and set to 0 for zero-support values@\\
-\mbox{}\verb@  vc <- matrix(0, nrow=p+N+1, ncol=p+N+1)@\\
-\mbox{}\verb@  vc[hess_idx, hess_idx] <- bvc[1:(p+length(spt)), 1:(p+length(spt))]     @\\
+\mbox{}\verb@  bvc <- tryCatch(solve(-bhess), error = function(e)NA)@\\
+\mbox{}\verb@  # bvc <- solve(-bhess)@\\
+\mbox{}\verb@  if (!is.na(bvc)){@\\
+\mbox{}\verb@    # remove border and set to 0 for zero-support values@\\
+\mbox{}\verb@    vc <- matrix(0, nrow=p+N+1, ncol=p+N+1)@\\
+\mbox{}\verb@    vc[hess_idx, hess_idx] <- bvc[1:(p+length(spt)), 1:(p+length(spt))]     @\\
+\mbox{}\verb@  } else {@\\
+\mbox{}\verb@    vc <- matrix(NA, nrow=p+N+1, ncol=p+N+1)@\\
+\mbox{}\verb@  }@\\
 \mbox{}\verb@@{\NWsep}
 \end{list}
 \vspace{-1.5ex}
