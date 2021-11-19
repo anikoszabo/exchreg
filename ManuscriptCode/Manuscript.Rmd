@@ -130,8 +130,8 @@ Goal:
  
   1. Both the beta-binomial and semi-parameteric model are correct - a binomial backbone, which belongs to the exponential family
   2. Only the beta-binomial model is correct - generated from a beta-binomial distribution
-  3. Only the semi-parametric model is correct - generated from the spglm, with a zero-inflated beta-binomial backbone
-  4. Neither model is correct - generated from a zero-inflated beta-binomial distribution
+  3. Only the semi-parametric model is correct - generated from the spglm, with a q-power backbone
+  4. Neither model is correct - generated from a q-power distribution
  * fit the data using our semi-parametric regression model, beta-binomial regression (potentially misspecified distribution), and GEE (marginal only)
  
 
@@ -166,19 +166,31 @@ add_response_spglm <- function(cov_data, q0){
   res
 }
 
-# add random response counts from zero-inflated beta-binomial 
-add_response_zoibb <- function(cov_data, pstr0, rho){
+# add random response counts from binomial, beta-binomial, or q-power
+add_response_param <- function(cov_data, rfun=function(n, cs, p)rbinom(n, size=cs, prob=p)){
   # cov_data should come from sim_covariates
   
   res <- cov_data
-  res$NResp <- rzoibetabinom(n = nrow(cov_data),
-                             size = cov_data$ClusterSize,
-                             prob = cov_data$p_resp,
-                             rho = rho,
-                             pstr0 = pstr0)
+  res$NResp <- rfun(n = nrow(cov_data),
+                    cs = cov_data$ClusterSize,
+                    p = cov_data$p_resp)
   res$Trt <- "All"
   res$Freq <- 1
   class(res) <- c("CBData", class(res))
+  res
+}
+
+# random number generation from the q-power pdf
+rqpower <- function(n, size, prob, rho){
+  size <- rep(size, length.out = n)
+  prob <- rep(prob, length.out = n)
+  rho <- rep(rho, length.out = n)
+  
+  res <- mapply(
+    function(s,p,r){
+      pdf <- qpower.pdf(p=p, rho=r, n=s)
+      sample(0:s, size=1, prob=pdf)},
+    size, prob, rho)
   res
 }
 ```
@@ -186,7 +198,7 @@ add_response_zoibb <- function(cov_data, pstr0, rho){
 ## Analyzing a simulated dataset
 
 ```{r AnalyzeOne}
-run_analysis <- function(dat){
+run_analysis <- function(dat, cs_predict=5){
   #GEE
   dat_long <- unwrap(dat)
   res_gee <- geeglm(Resp ~ X1 + X2, data=dat_long, id = ID, family=binomial,
@@ -200,6 +212,25 @@ run_analysis <- function(dat){
                    weights  = Freq)
   options(op)
   
+  # predict PDF at cluster-size cs_predict & all covariates = 0
+  newd <- data.frame(X1 = 0, X2 = 0)
+  # beta-binomial
+  mns_rho <- predictvglm(res_bb, type="link", newdata=newd, untransform=TRUE) 
+
+  fit_bb <- newd %>% 
+    crossing(NResp=0:cs_predict) %>%
+    mutate(ClusterSize = cs_predict,
+           Prob = dbetabinom(NResp, size=cs_predict, prob=mns_rho[1,"mu"], rho=mns_rho[1,"rho"])) %>%
+  mutate(Model="BB")
+
+
+  fit_spglm <- newd %>% 
+    crossing(NResp=0:cs_predict) %>%
+    mutate(ClusterSize = cs_predict,
+           Prob = predict(res_spglm, newdata=., type="prob", 
+                          newn=ClusterSize, newevents = NResp),
+           Model = "SPGLM")
+  
   nms <- names(coef(res_spglm))
   res <- bind_rows(
     GEE = tibble(Term = nms, 
@@ -212,7 +243,18 @@ run_analysis <- function(dat){
                    Est = coef(res_spglm), 
                    SE= sqrt(diag(vcov(res_spglm)))),
     .id = "Model")
-  res
+  
+  fit <- bind_rows(fit_bb, fit_spglm) %>%
+    mutate(Type = "PDF")
+  
+  out <- res %>%
+    mutate(Type = "Beta") %>%
+    bind_rows(fit %>% 
+                mutate(Term = as.character(NResp)) %>%
+                select(Type, Model, Term, Est=Prob))
+  
+  
+  out
 }
 ```
 
@@ -222,48 +264,69 @@ run_analysis <- function(dat){
 
 
 ```{r ActualSim1, warning=FALSE}
-R <- 50
+R <- 100
+cs_predict <- 5
+p_predict <- 1/(1+exp(-c(beta_correct %*% c(0,0,0))))
 
 # Scenario 1: binomial PDF
 sim1 <- 
   replicate(R,
-            {simd <- sim_covariates(100) %>% add_response_zoibb(pstr=0, rho=0);
-             run_analysis(simd)}, 
+            {simd <- sim_covariates(100) %>% 
+                add_response_param(rfun=function(n, cs, p)rbinom(n, size=cs, prob=p));
+             run_analysis(simd, cs_predict = cs_predict)}, 
             simplify = FALSE)  %>%
    bind_rows(.id="ID")
+
+pdf1 <- tibble(NResp = 0:cs_predict) %>%
+  mutate(Correct = dbinom(NResp, size=cs_predict, prob=p_predict))
 ```
 
 ```{r ActualSim2, warning=FALSE}
-# Scenario 2: binomial PDF
+# Scenario 2: beta-binomial PDF
 sim2 <- 
   replicate(R,
-            {simd <- sim_covariates(100) %>% add_response_zoibb(pstr=0, rho=0.3);
-             run_analysis(simd)}, 
+            {simd <- sim_covariates(100) %>% 
+                add_response_param(rfun=function(n, cs, p)rbetabinom(n, size=cs, prob=p, rho=0.3));
+             run_analysis(simd, cs_predict = cs_predict)}, 
             simplify = FALSE) %>%
    bind_rows(.id="ID")
 
+pdf2 <- tibble(NResp = 0:cs_predict) %>%
+  mutate(Correct = dbetabinom(NResp, size=cs_predict, prob=p_predict, rho=0.3))
 ```
 
 ```{r ActualSim3, warning=FALSE}
-# Scenario 3: SPGLM with zero-inflated betabinomial backbone
+# Scenario 3: SPGLM with q-power backbone
 sim3 <- 
   replicate(R,
             {simd <- sim_covariates(100) %>% 
-              add_response_spglm(q0 = dzoibetabinom(0:10, size=10, prob=0.4, rho = 0.3, pstr0 = 0.1));
-             run_analysis(simd)}, 
+              add_response_spglm(q0 = qpower.pdf(n=10, p=0.4, rho = 0.3));
+             run_analysis(simd, cs_predict = cs_predict)}, 
             simplify = FALSE)  %>%
    bind_rows(.id="ID")
+
+# simulation-based pdf
+pdf3 <- ran.spglm(n=rep(cs_predict, 1e6), means = rep(p_predict, 1e6), 
+                  q0 = qpower.pdf(n=10, p=0.4, rho = 0.3)) %>%
+  count(NResp) %>%
+  mutate(Correct = n/sum(n)) %>%
+  select(-n)
 
 ```
 
 ```{r ActualSim4, warning=FALSE}
-# Scenario 4: zero-inflated betabinomial 
+# Scenario 4: q-power 
 sim4 <- 
   replicate(R,
-            {simd <- sim_covariates(100) %>% add_response_zoibb(pstr=0.1, rho=0.3);
-             run_analysis(simd)}, 
+            {simd <- sim_covariates(100) %>% 
+                add_response_param(rfun=function(n, cs, p)rqpower(n, size=cs, prob=p, rho=0.3));
+             run_analysis(simd, cs_predict = cs_predict)}, 
             simplify = FALSE)  %>%
    bind_rows(.id="ID")
+
+pdf4 <- tibble(NResp = 0:cs_predict) %>%
+  mutate(Correct = qpower.pdf(n=cs_predict, p=p_predict, rho=0.3))
+
 
 ```
 
@@ -278,12 +341,23 @@ comb <- bind_rows(`Both correct` = sim1,
                   `Neither correct` = sim4,
                   .id="Generator") 
 
-# get correct values of parameters on a logit-model scale
-correct <- tibble(Term = c("(Intercept)","X1","X2"),
+# get correct values of parameters 
+correct_beta <- tibble(Term = c("(Intercept)","X1","X2"),
                   Correct = beta_correct)
-comb <- left_join(comb, correct, by="Term")
+correct_pdf <- bind_rows(`Both correct` = pdf1, 
+                         `BB correct`= pdf2,
+                         `SPGLM correct` = pdf3, 
+                         `Neither correct` = pdf4,
+                         .id="Generator") %>%
+  mutate(Term = as.character(NResp)) 
 
-scomb <- comb %>%
+comb_beta <- left_join(comb %>% filter(Type == "Beta"), correct_beta, by="Term")
+
+comb_pdf <- left_join(comb %>% filter(Type=="PDF"), 
+                      correct_pdf, by=c("Term","Generator")) 
+
+
+scomb <- comb_beta %>%
   group_by(Generator, Term, Model) %>%
   summarize(bias = mean(Est-Correct, na.rm=TRUE),
             mc.se = sd(Est, na.rm=TRUE),
@@ -296,11 +370,19 @@ kable(scomb, digits=3)
 ```
 
 ```{r ComparePlot}
-ggplot(comb, aes(x=Model, y=Est, colour=Model)) +
-  facet_grid(Generator~Term) +
-  geom_hline(aes(yintercept=Correct)) +
-  geom_boxplot(outlier.shape = NA) +
-  geom_jitter(alpha=0.3, height=0)
+ggplot(comb_beta, aes(x=Term, y=Est-Correct, colour=Model, shape=Model)) +
+  facet_wrap(~Generator) +
+  geom_hline(aes(yintercept=0)) +
+  stat_summary(fun.data =  mean_sdl, geom="pointrange", position=position_dodge(width=0.4)) 
+
+```
+
+```{r PDFplot}
+ggplot(comb_pdf, aes(x=NResp, y=Est, colour=Model)) +
+  facet_wrap(~Generator) +
+  geom_line(aes(y=Correct), col="black") +
+  stat_summary(fun.data =  mean_sdl, geom="pointrange", position=position_dodge(width=0.1)) 
+  
 ```
 
 # Session information
