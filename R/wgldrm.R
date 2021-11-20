@@ -319,6 +319,11 @@ getBeta <- function(x, y, spt, ySptIndex, f0, linkinv, mu.eta, offset, weights,
     return(list(beta=beta, mu=mu, th=th, llik=llik, iter=iter, conv=conv))
 }
 
+## usethis namespace: start
+#' @useDynLib exchreg, .registration = TRUE
+#' @importFrom Rcpp sourceCpp
+## usethis namespace: end
+
 ## Computes log(sum(exp(x))) with better precision
 logSumExp <- function(x)
 {

@@ -393,6 +393,11 @@ The code is based on the \texttt{gldrm} package, with minor changes to incorpora
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
+\mbox{}\verb@## usethis namespace: start@\\
+\mbox{}\verb@#' @{\tt @}\verb@useDynLib exchreg, .registration = TRUE@\\
+\mbox{}\verb@#' @{\tt @}\verb@importFrom Rcpp sourceCpp@\\
+\mbox{}\verb@## usethis namespace: end@\\
+\mbox{}\verb@@\\
 \mbox{}\verb@## Computes log(sum(exp(x))) with better precision@\\
 \mbox{}\verb@logSumExp <- function(x)@\\
 \mbox{}\verb@{@\\

@@ -10,6 +10,7 @@ use_gpl3_license()
 desc::desc_add_author(given = "Xinran", family = "Qi", email = "xinqi@mcw.edu", role = "aut",
                comment = NULL, file = ".", normalize = FALSE)
 use_readme_rmd()
+use_rcpp_armadillo()
 
 # add data
 boric_acid <- CorrBin::read.CBData("z:/EOGeorge/Data/Binary/BoricAcidMousedata_processed.csv",
@@ -38,6 +39,7 @@ check(ex, check_dir = "c:/Temp", cran = TRUE, manual=TRUE)
 data(boric_acid)
 m <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, data=boric_acid, link="logit",
            weights=boric_acid$Freq, control = list(eps=1e-5, maxit=100))
+
 
 ba2 <- boric_acid[rep(1:nrow(boric_acid), boric_acid$Freq),]
 m2 <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, data=ba2, link="logit", control = list(eps=1e-5, maxit=1000))
@@ -99,6 +101,10 @@ mll <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, data=boric_acid,
 # random data
 dd <- ran.spglm(1:5, means=seq(0.2, 0.6, length.out = 5), q0 = dbinom(0:5, size=5, prob=0.3))
 dd
+
+# profiling -> getTheta takes most of the time
+profvis::profvis({m <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, data=boric_acid, link="logit",
+                   weights=boric_acid$Freq, control = list(eps=1e-5, maxit=100))})
 
 ######### Testing wGLDRM
 run_gldrm <- 
@@ -178,6 +184,7 @@ all.equal(res1[c("conv", "iter", "beta", "f0", "mu0", "llik")],
 
 all.equal(res1[c("conv", "iter", "beta", "f0", "mu0", "llik")],
           c(res3[c("conv", "iter", "beta", "f0", "mu0")], llik = res3$llik * sum(shelltox$Freq)))
+
 
 ######### Testing SPreg
 
