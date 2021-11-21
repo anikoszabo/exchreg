@@ -319,6 +319,11 @@ getBeta <- function(x, y, spt, ySptIndex, f0, linkinv, mu.eta, offset, weights,
     return(list(beta=beta, mu=mu, th=th, llik=llik, iter=iter, conv=conv))
 }
 
+## usethis namespace: start
+#' @useDynLib exchreg, .registration = TRUE
+#' @importFrom Rcpp sourceCpp
+## usethis namespace: end
+
 ## Computes log(sum(exp(x))) with better precision
 logSumExp <- function(x)
 {
@@ -403,13 +408,7 @@ getTheta <- function(spt, f0, mu, weights, ySptIndex, thetaStart=NULL, thetaCont
     if (class(thetaControl) != "thetaControl")
         stop("thetaControl must be an object of class \'thetaControl\' returned by
              thetaControl() function.")
-    logit <- thetaControl$logit
-    eps <- thetaControl$eps
-    maxiter <- thetaControl$maxiter
-    maxhalf <- thetaControl$maxhalf
-    maxtheta <- thetaControl$maxtheta
-    logsumexp <- thetaControl$logsumexp
-
+             
     ## Define value from inputs
     sptN <- length(spt)
     m <- min(spt)
@@ -436,103 +435,14 @@ getTheta <- function(spt, f0, mu, weights, ySptIndex, thetaStart=NULL, thetaCont
     if (length(thetaStart) != n)
         stop("thetaStart must be a vector with length equal length(mu)")
 
-    ## Value does not change
-    gMu <- g(mu, m, M)
-
-    ## Initialize values
-    theta <- thetaStart  # initial values required
-    thetaOld <- bPrimeErrOld <- rep(NA, n)
-    conv <- rep(FALSE, n)
-    maxedOut <- rep(FALSE, n)
-
-    if (logsumexp) {
-        logf0 <- log(f0)
-        logfUnstd <- logf0 + tcrossprod(spt, theta)
-        logb <- apply(logfUnstd, 2, logSumExp)
-        fTilt <- exp(logfUnstd - rep(logb, each=sptN))
-        normfact <- colSums(fTilt)
-        normss <- which(normfact != 1)
-        fTilt[, normss] <- fTilt[, normss, drop=FALSE] / rep(normfact[normss], each=sptN)
-    } else {
-        fUnstd <- f0 * exp(tcrossprod(spt, theta))  # |spt| x n matrix of tilted f0 values
-        b <- colSums(fUnstd)
-        fTilt <- fUnstd / rep(b, each=sptN)  # normalized
-    }
-    bPrime <- colSums(spt*fTilt)  # mean as a function of theta
-    bPrime2 <- colSums(outer(spt, bPrime, "-")^2 * fTilt)  # variance as a function of theta
-    bPrimeErr <- bPrime - mu  # used to assess convergence
-
-    ## Update theta until convergence
-    conv <- (abs(bPrimeErr) < eps) |
-        (theta==maxtheta & bPrimeErr<0) |
-        (theta==-maxtheta & bPrimeErr>0)
-    s <- which(!conv)
-    iter <- 0
-    while(length(s)>0 && iter<maxiter) {
-        iter <- iter + 1
-        bPrimeErrOld[s] <- bPrimeErr[s]  # used to assess convergence
-
-        ## 1) Update theta
-        thetaOld[s] <- theta[s]
-        if (logit) {
-            tPrimeS <- (M-m) / ((bPrime[s]-m) * (M-bPrime[s])) * bPrime2[s]
-                # t'(theta) from paper: temporary variable
-                # only needed for the subset of observations that have not converged
-            tPrimeS[is.na(tPrimeS) | tPrimeS==Inf] <- 0
-                # If bPrime is on the boundary, then bPrime2 should be zero.
-                # Exceptions are due to rounding error.
-            thetaS <- theta[s] - (g(bPrime[s], m, M) - gMu[s]) / tPrimeS
-        } else {
-            thetaS <- theta[s] - bPrimeErr[s] / bPrime2[s]
-        }
-        thetaS[thetaS > maxtheta] <- maxtheta
-        thetaS[thetaS < -maxtheta] <- -maxtheta
-        theta[s] <- thetaS
-
-        ## 2) Update fTilt, bPrime, and bPrime2 and take half steps if bPrimeErr not improved
-        ss <- s
-        nhalf <- 0
-        while(length(ss)>0 && nhalf<maxhalf) {
-            ## 2a) Update fTilt, bPrime, and bPrime2
-            if (logsumexp) {
-                logfUnstd[, ss] <- logf0 + tcrossprod(spt, theta[ss])
-                logb[ss] <- apply(logfUnstd[, ss, drop=FALSE], 2, logSumExp)
-                fTilt[, ss] <- exp(logfUnstd[, ss, drop=FALSE] - rep(logb[ss], each=sptN))
-                normfact <- colSums(fTilt[, ss, drop=FALSE])
-                normss <- which(normfact != 1)
-                fTilt[, ss[normss]] <- fTilt[, ss[normss], drop=FALSE] / rep(normfact[normss], each=sptN)
-            } else {
-                fUnstd[, ss] <- f0*exp(tcrossprod(spt, theta[ss]))  # |spt| x n matrix of tilted f0 values
-                b[ss] <- colSums(fUnstd[, ss, drop=FALSE])
-                fTilt[, ss] <- fUnstd[, ss, drop=FALSE] / rep(b[ss], each=sptN)  # normalized
-            }
-            bPrime[ss] <- colSums(spt*fTilt[, ss, drop=FALSE])  # mean as a function of theta
-            bPrime2[ss] <- colSums(outer(spt, bPrime[ss], "-")^2 * fTilt[, ss, drop=FALSE])  # variance as a function of theta
-            bPrimeErr[ss] <- bPrime[ss] - mu[ss]  # used to assess convergence
-
-            ## 2b) Take half steps if necessary
-            ss <- ss[abs(bPrimeErr[ss]) > abs(bPrimeErrOld[ss])]
-            if (length(ss) > 0) nhalf <- nhalf + 1
-            theta[ss] <- (theta[ss] + thetaOld[ss]) / 2
-        }
-        ## If maximum half steps are exceeded, set theta to previous value
-        maxedOut[ss] <- TRUE
-        theta[ss] <- thetaOld[ss]
-
-        ## 3) Check convergence
-        conv[s] <- (abs(bPrimeErr[s]) < eps) |
-            (theta[s]==maxtheta & bPrimeErr[s]<0) |
-            (theta[s]==-maxtheta & bPrimeErr[s]>0)
-        s <- s[!conv[s] & !maxedOut[s]]
-    }
-
+    res <- getThetaC(spt, f0, mu, thetaStart, thetaControl)
 
     ## Calculate log-likelihood
-    fTilt.extracted <- fTilt[cbind(ySptIndex, seq_along(ySptIndex))]
+    fTilt.extracted <- res$fTilt[cbind(ySptIndex, seq_along(ySptIndex))]
     llik <- sum(weights[fTilt.extracted>0] * log(fTilt.extracted[fTilt.extracted>0]))
  
-    list(theta=theta, fTilt=fTilt, bPrime=bPrime, bPrime2=bPrime2,
-         llik=llik, conv=conv, iter=iter)
+    list(theta=c(res$theta), fTilt=res$fTilt, bPrime=c(res$bPrime), bPrime2=c(res$bPrime2),
+         llik=llik, conv=c(res$conv), iter=res$iter)
 }
 
 

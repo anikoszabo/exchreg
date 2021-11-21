@@ -217,9 +217,9 @@ spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL
         bhess <- rbind(cbind(hess1, border1, border2), c(border1,0,0), c(border2,0,0))
         
         # calculate variance-covariance matrix
-        bvc <- tryCatch(solve(-bhess), error = function(e)NA)
+        bvc <- tryCatch(solve(-bhess), error = function(e)NULL)
         # bvc <- solve(-bhess)
-        if (!is.na(bvc)){
+        if (!is.null(bvc)){
           # remove border and set to 0 for zero-support values
           vc <- matrix(0, nrow=p+N+1, ncol=p+N+1)
           vc[hess_idx, hess_idx] <- bvc[1:(p+length(spt)), 1:(p+length(spt))]     
