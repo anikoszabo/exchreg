@@ -102,7 +102,8 @@ mll <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, data=boric_acid,
 dd <- ran.spglm(1:5, means=seq(0.2, 0.6, length.out = 5), q0 = dbinom(0:5, size=5, prob=0.3))
 dd
 
-# profiling -> getTheta takes most of the time
+# profiling -> getTheta takes most of the time originally
+# after rewriting it in C, the dhyper calls within spglm_probs stands out
 profvis::profvis({m <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, data=boric_acid, link="logit",
                    weights=boric_acid$Freq, control = list(eps=1e-5, maxit=100))})
 
@@ -186,6 +187,114 @@ all.equal(res1[c("conv", "iter", "beta", "f0", "mu0", "llik")],
           c(res3[c("conv", "iter", "beta", "f0", "mu0")], llik = res3$llik * sum(shelltox$Freq)))
 
 
+## Testing getTheta C-version
+getThetaR <- function(spt, f0, mu, thetaStart=NULL, thetaControl=theta.control())
+{
+  ## Extract control arguments
+  if (class(thetaControl) != "thetaControl")
+    stop("thetaControl must be an object of class \'thetaControl\' returned by
+             thetaControl() function.")
+  logit <- thetaControl$logit
+  eps <- thetaControl$eps
+  maxiter <- thetaControl$maxiter
+  maxhalf <- thetaControl$maxhalf
+  maxtheta <- thetaControl$maxtheta
+
+  ## Define value from inputs
+  sptN <- length(spt)
+  m <- min(spt)
+  M <- max(spt)
+  n <- length(mu)
+  
+  ## Format arguments
+  spt <- as.vector(spt)
+  f0 <- as.vector(f0)
+  mu <- as.vector(mu)
+  thetaStart <- as.vector(thetaStart)
+  
+  ## Value does not change
+  gMu <- exchreg:::g(mu, m, M)
+  
+  ## Initialize values
+  theta <- thetaStart  # initial values required
+  thetaOld <- bPrimeErrOld <- rep(NA, n)
+  conv <- rep(FALSE, n)
+  maxedOut <- rep(FALSE, n)
+  
+
+    fUnstd <- f0 * exp(tcrossprod(spt, theta))  # |spt| x n matrix of tilted f0 values
+    b <- colSums(fUnstd)
+    fTilt <- fUnstd / rep(b, each=sptN)  # normalized
+  
+  bPrime <- colSums(spt*fTilt)  # mean as a function of theta
+  bPrime2 <- colSums(outer(spt, bPrime, "-")^2 * fTilt)  # variance as a function of theta
+  bPrimeErr <- bPrime - mu  # used to assess convergence
+  
+  
+  ## Update theta until convergence
+  conv <- (abs(bPrimeErr) < eps) | (theta==maxtheta & bPrimeErr<0) |
+  (theta==-maxtheta & bPrimeErr>0)
+  s <- which(!conv)
+  iter <- 0
+  while(length(s)>0 && iter<maxiter) {
+    iter <- iter + 1
+    bPrimeErrOld[s] <- bPrimeErr[s]  # used to assess convergence
+     
+    ## 1) Update theta
+    thetaOld[s] <- theta[s]
+    thetaS <- theta[s] - bPrimeErr[s] / bPrime2[s]
+     thetaS[thetaS > maxtheta] <- maxtheta
+     thetaS[thetaS < -maxtheta] <- -maxtheta
+     theta[s] <- thetaS
+  #   
+  ## 2) Update fTilt, bPrime, and bPrime2 and take half steps if bPrimeErr not improved
+   ss <- s
+   nhalf <- 0
+   while(length(ss)>0 && nhalf<maxhalf) {
+     ## 2a) Update fTilt, bPrime, and bPrime2
+      fUnstd[, ss] <- f0*exp(tcrossprod(spt, theta[ss]))  # |spt| x n matrix of tilted f0 values
+      b[ss] <- colSums(fUnstd[, ss, drop=FALSE])
+      fTilt[, ss] <- fUnstd[, ss, drop=FALSE] / rep(b[ss], each=sptN)  # normalized
+   
+     bPrime[ss] <- colSums(spt*fTilt[, ss, drop=FALSE])  # mean as a function of theta
+     bPrime2[ss] <- colSums(outer(spt, bPrime[ss], "-")^2 * fTilt[, ss, drop=FALSE])  # variance as a function of theta
+     bPrimeErr[ss] <- bPrime[ss] - mu[ss]  # used to assess convergence
+       
+     ## 2b) Take half steps if necessary
+    ss <- ss[abs(bPrimeErr[ss]) > abs(bPrimeErrOld[ss])]
+    if (length(ss) > 0) nhalf <- nhalf + 1
+    theta[ss] <- (theta[ss] + thetaOld[ss]) / 2
+   }
+   ## If maximum half steps are exceeded, set theta to previous value
+   maxedOut[ss] <- TRUE
+   theta[ss] <- thetaOld[ss]
+     
+   ## 3) Check convergence
+   conv[s] <- (abs(bPrimeErr[s]) < eps) |
+     (theta[s]==maxtheta & bPrimeErr[s]<0) |
+     (theta[s]==-maxtheta & bPrimeErr[s]>0)
+   s <- s[!conv[s] & !maxedOut[s]]
+  }
+ 
+  list(theta=theta, fTilt=fTilt, bPrime=bPrime, bPrime2=bPrime2,
+       conv=conv, iter=iter)
+}
+
+.spt <- 0:5
+.f0 <- dbinom(0:5, size=5, prob=0.2)
+.mu <- seq(2, 4, by=0.5)
+.thetaStart <- rep(0, length(.mu))
+
+  
+Rcpp::sourceCpp("src/getTheta.cpp")
+(a <- getThetaC(.spt, .f0, .mu, .thetaStart, exchreg:::theta.control()))
+(b <- getThetaR(.spt, .f0, .mu, .thetaStart, exchreg:::theta.control()))
+
+all.equal(lapply(a,c), lapply(b,c))
+microbenchmark::microbenchmark(
+  getThetaC(.spt, .f0, .mu, .thetaStart, exchreg:::theta.control()),
+  getThetaR(.spt, .f0, .mu, .thetaStart, exchreg:::theta.control())
+)
 ######### Testing SPreg
 
 

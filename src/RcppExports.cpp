@@ -12,24 +12,23 @@ Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
 // getThetaC
-List getThetaC(arma::vec spt, arma::vec f0, arma::vec mu, arma::vec weights, arma::vec thetaStart, List thetaControl);
-RcppExport SEXP _exchreg_getThetaC(SEXP sptSEXP, SEXP f0SEXP, SEXP muSEXP, SEXP weightsSEXP, SEXP thetaStartSEXP, SEXP thetaControlSEXP) {
+List getThetaC(arma::vec spt, arma::vec f0, arma::vec mu, arma::vec thetaStart, List thetaControl);
+RcppExport SEXP _exchreg_getThetaC(SEXP sptSEXP, SEXP f0SEXP, SEXP muSEXP, SEXP thetaStartSEXP, SEXP thetaControlSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
     Rcpp::traits::input_parameter< arma::vec >::type spt(sptSEXP);
     Rcpp::traits::input_parameter< arma::vec >::type f0(f0SEXP);
     Rcpp::traits::input_parameter< arma::vec >::type mu(muSEXP);
-    Rcpp::traits::input_parameter< arma::vec >::type weights(weightsSEXP);
     Rcpp::traits::input_parameter< arma::vec >::type thetaStart(thetaStartSEXP);
     Rcpp::traits::input_parameter< List >::type thetaControl(thetaControlSEXP);
-    rcpp_result_gen = Rcpp::wrap(getThetaC(spt, f0, mu, weights, thetaStart, thetaControl));
+    rcpp_result_gen = Rcpp::wrap(getThetaC(spt, f0, mu, thetaStart, thetaControl));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_exchreg_getThetaC", (DL_FUNC) &_exchreg_getThetaC, 6},
+    {"_exchreg_getThetaC", (DL_FUNC) &_exchreg_getThetaC, 5},
     {NULL, NULL, 0}
 };
 

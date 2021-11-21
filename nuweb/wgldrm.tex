@@ -225,7 +225,7 @@ The code is based on the \texttt{gldrm} package, with minor changes to incorpora
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb4}{, 4}\NWlink{nuweb6}{, 6}\NWlink{nuweb10}{, 10}.
+\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb4}{, 4}\NWlink{nuweb6}{, 6}\NWlink{nuweb?}{, ?}.
 
 \item{}
 \end{list}
@@ -382,7 +382,7 @@ The code is based on the \texttt{gldrm} package, with minor changes to incorpora
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb4}{, 4}\NWlink{nuweb6}{, 6}\NWlink{nuweb10}{, 10}.
+\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb4}{, 4}\NWlink{nuweb6}{, 6}\NWlink{nuweb?}{, ?}.
 
 \item{}
 \end{list}
@@ -482,13 +482,7 @@ The code is based on the \texttt{gldrm} package, with minor changes to incorpora
 \mbox{}\verb@    if (class(thetaControl) != "thetaControl")@\\
 \mbox{}\verb@        stop("thetaControl must be an object of class \'thetaControl\' returned by@\\
 \mbox{}\verb@             thetaControl() function.")@\\
-\mbox{}\verb@    logit <- thetaControl$logit@\\
-\mbox{}\verb@    eps <- thetaControl$eps@\\
-\mbox{}\verb@    maxiter <- thetaControl$maxiter@\\
-\mbox{}\verb@    maxhalf <- thetaControl$maxhalf@\\
-\mbox{}\verb@    maxtheta <- thetaControl$maxtheta@\\
-\mbox{}\verb@    logsumexp <- thetaControl$logsumexp@\\
-\mbox{}\verb@@\\
+\mbox{}\verb@             @\\
 \mbox{}\verb@    ## Define value from inputs@\\
 \mbox{}\verb@    sptN <- length(spt)@\\
 \mbox{}\verb@    m <- min(spt)@\\
@@ -515,117 +509,169 @@ The code is based on the \texttt{gldrm} package, with minor changes to incorpora
 \mbox{}\verb@    if (length(thetaStart) != n)@\\
 \mbox{}\verb@        stop("thetaStart must be a vector with length equal length(mu)")@\\
 \mbox{}\verb@@\\
-\mbox{}\verb@    ## Value does not change@\\
-\mbox{}\verb@    gMu <- g(mu, m, M)@\\
-\mbox{}\verb@@\\
-\mbox{}\verb@    ## Initialize values@\\
-\mbox{}\verb@    theta <- thetaStart  # initial values required@\\
-\mbox{}\verb@    thetaOld <- bPrimeErrOld <- rep(NA, n)@\\
-\mbox{}\verb@    conv <- rep(FALSE, n)@\\
-\mbox{}\verb@    maxedOut <- rep(FALSE, n)@\\
-\mbox{}\verb@@\\
-\mbox{}\verb@    if (logsumexp) {@\\
-\mbox{}\verb@        logf0 <- log(f0)@\\
-\mbox{}\verb@        logfUnstd <- logf0 + tcrossprod(spt, theta)@\\
-\mbox{}\verb@        logb <- apply(logfUnstd, 2, logSumExp)@\\
-\mbox{}\verb@        fTilt <- exp(logfUnstd - rep(logb, each=sptN))@\\
-\mbox{}\verb@        normfact <- colSums(fTilt)@\\
-\mbox{}\verb@        normss <- which(normfact != 1)@\\
-\mbox{}\verb@        fTilt[, normss] <- fTilt[, normss, drop=FALSE] / rep(normfact[normss], each=sptN)@\\
-\mbox{}\verb@    } else {@\\
-\mbox{}\verb@        fUnstd <- f0 * exp(tcrossprod(spt, theta))  # |spt| x n matrix of tilted f0 values@\\
-\mbox{}\verb@        b <- colSums(fUnstd)@\\
-\mbox{}\verb@        fTilt <- fUnstd / rep(b, each=sptN)  # normalized@\\
-\mbox{}\verb@    }@\\
-\mbox{}\verb@    bPrime <- colSums(spt*fTilt)  # mean as a function of theta@\\
-\mbox{}\verb@    bPrime2 <- colSums(outer(spt, bPrime, "-")^2 * fTilt)  # variance as a function of theta@\\
-\mbox{}\verb@    bPrimeErr <- bPrime - mu  # used to assess convergence@\\
-\mbox{}\verb@@\\
-\mbox{}\verb@    ## Update theta until convergence@\\
-\mbox{}\verb@    conv <- (abs(bPrimeErr) < eps) |@\\
-\mbox{}\verb@        (theta==maxtheta & bPrimeErr<0) |@\\
-\mbox{}\verb@        (theta==-maxtheta & bPrimeErr>0)@\\
-\mbox{}\verb@    s <- which(!conv)@\\
-\mbox{}\verb@    iter <- 0@\\
-\mbox{}\verb@    while(length(s)>0 && iter<maxiter) {@\\
-\mbox{}\verb@        iter <- iter + 1@\\
-\mbox{}\verb@        bPrimeErrOld[s] <- bPrimeErr[s]  # used to assess convergence@\\
-\mbox{}\verb@@\\
-\mbox{}\verb@        ## 1) Update theta@\\
-\mbox{}\verb@        thetaOld[s] <- theta[s]@\\
-\mbox{}\verb@        if (logit) {@\\
-\mbox{}\verb@            tPrimeS <- (M-m) / ((bPrime[s]-m) * (M-bPrime[s])) * bPrime2[s]@\\
-\mbox{}\verb@                # t'(theta) from paper: temporary variable@\\
-\mbox{}\verb@                # only needed for the subset of observations that have not converged@\\
-\mbox{}\verb@            tPrimeS[is.na(tPrimeS) | tPrimeS==Inf] <- 0@\\
-\mbox{}\verb@                # If bPrime is on the boundary, then bPrime2 should be zero.@\\
-\mbox{}\verb@                # Exceptions are due to rounding error.@\\
-\mbox{}\verb@            thetaS <- theta[s] - (g(bPrime[s], m, M) - gMu[s]) / tPrimeS@\\
-\mbox{}\verb@        } else {@\\
-\mbox{}\verb@            thetaS <- theta[s] - bPrimeErr[s] / bPrime2[s]@\\
-\mbox{}\verb@        }@\\
-\mbox{}\verb@        thetaS[thetaS > maxtheta] <- maxtheta@\\
-\mbox{}\verb@        thetaS[thetaS < -maxtheta] <- -maxtheta@\\
-\mbox{}\verb@        theta[s] <- thetaS@\\
-\mbox{}\verb@@\\
-\mbox{}\verb@        ## 2) Update fTilt, bPrime, and bPrime2 and take half steps if bPrimeErr not improved@\\
-\mbox{}\verb@        ss <- s@\\
-\mbox{}\verb@        nhalf <- 0@\\
-\mbox{}\verb@        while(length(ss)>0 && nhalf<maxhalf) {@\\
-\mbox{}\verb@            ## 2a) Update fTilt, bPrime, and bPrime2@\\
-\mbox{}\verb@            if (logsumexp) {@\\
-\mbox{}\verb@                logfUnstd[, ss] <- logf0 + tcrossprod(spt, theta[ss])@\\
-\mbox{}\verb@                logb[ss] <- apply(logfUnstd[, ss, drop=FALSE], 2, logSumExp)@\\
-\mbox{}\verb@                fTilt[, ss] <- exp(logfUnstd[, ss, drop=FALSE] - rep(logb[ss], each=sptN))@\\
-\mbox{}\verb@                normfact <- colSums(fTilt[, ss, drop=FALSE])@\\
-\mbox{}\verb@                normss <- which(normfact != 1)@\\
-\mbox{}\verb@                fTilt[, ss[normss]] <- fTilt[, ss[normss], drop=FALSE] / rep(normfact[normss], each=sptN)@\\
-\mbox{}\verb@            } else {@\\
-\mbox{}\verb@                fUnstd[, ss] <- f0*exp(tcrossprod(spt, theta[ss]))  # |spt| x n matrix of tilted f0 values@\\
-\mbox{}\verb@                b[ss] <- colSums(fUnstd[, ss, drop=FALSE])@\\
-\mbox{}\verb@                fTilt[, ss] <- fUnstd[, ss, drop=FALSE] / rep(b[ss], each=sptN)  # normalized@\\
-\mbox{}\verb@            }@\\
-\mbox{}\verb@            bPrime[ss] <- colSums(spt*fTilt[, ss, drop=FALSE])  # mean as a function of theta@\\
-\mbox{}\verb@            bPrime2[ss] <- colSums(outer(spt, bPrime[ss], "-")^2 * fTilt[, ss, drop=FALSE])  # variance as a function of theta@\\
-\mbox{}\verb@            bPrimeErr[ss] <- bPrime[ss] - mu[ss]  # used to assess convergence@\\
-\mbox{}\verb@@\\
-\mbox{}\verb@            ## 2b) Take half steps if necessary@\\
-\mbox{}\verb@            ss <- ss[abs(bPrimeErr[ss]) > abs(bPrimeErrOld[ss])]@\\
-\mbox{}\verb@            if (length(ss) > 0) nhalf <- nhalf + 1@\\
-\mbox{}\verb@            theta[ss] <- (theta[ss] + thetaOld[ss]) / 2@\\
-\mbox{}\verb@        }@\\
-\mbox{}\verb@        ## If maximum half steps are exceeded, set theta to previous value@\\
-\mbox{}\verb@        maxedOut[ss] <- TRUE@\\
-\mbox{}\verb@        theta[ss] <- thetaOld[ss]@\\
-\mbox{}\verb@@\\
-\mbox{}\verb@        ## 3) Check convergence@\\
-\mbox{}\verb@        conv[s] <- (abs(bPrimeErr[s]) < eps) |@\\
-\mbox{}\verb@            (theta[s]==maxtheta & bPrimeErr[s]<0) |@\\
-\mbox{}\verb@            (theta[s]==-maxtheta & bPrimeErr[s]>0)@\\
-\mbox{}\verb@        s <- s[!conv[s] & !maxedOut[s]]@\\
-\mbox{}\verb@    }@\\
-\mbox{}\verb@@\\
+\mbox{}\verb@    res <- getThetaC(spt, f0, mu, thetaStart, thetaControl)@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@    ## Calculate log-likelihood@\\
-\mbox{}\verb@    fTilt.extracted <- fTilt[cbind(ySptIndex, seq_along(ySptIndex))]@\\
+\mbox{}\verb@    fTilt.extracted <- res$fTilt[cbind(ySptIndex, seq_along(ySptIndex))]@\\
 \mbox{}\verb@    llik <- sum(weights[fTilt.extracted>0] * log(fTilt.extracted[fTilt.extracted>0]))@\\
 \mbox{}\verb@ @\\
-\mbox{}\verb@    list(theta=theta, fTilt=fTilt, bPrime=bPrime, bPrime2=bPrime2,@\\
-\mbox{}\verb@         llik=llik, conv=conv, iter=iter)@\\
+\mbox{}\verb@    list(theta=c(res$theta), fTilt=res$fTilt, bPrime=c(res$bPrime), bPrime2=c(res$bPrime2),@\\
+\mbox{}\verb@         llik=llik, conv=c(res$conv), iter=res$iter)@\\
 \mbox{}\verb@}@\\
 \mbox{}\verb@@{\NWsep}
 \end{list}
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb4}{, 4}\NWlink{nuweb6}{, 6}\NWlink{nuweb10}{, 10}.
+\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb4}{, 4}\NWlink{nuweb6}{, 6}\NWlink{nuweb?}{, ?}.
 
 \item{}
 \end{list}
 \vspace{4ex}
 \end{flushleft}
+The computationally intensive part of \texttt{getTheta} is implemented in C++. For now, only the \texttt{logsumexp = FALSE} and \texttt{logit = FALSE} settings are implemented.
+
 \begin{flushleft} \small\label{scrap4}\raggedright\small
-\NWtarget{nuweb10}{} \verb@"../R/wgldrm.R"@\nobreak\ {\footnotesize {10}}$\equiv$
+\NWtarget{nuweb10}{} \verb@"../src/getTheta.cpp"@\nobreak\ {\footnotesize {10}}$\equiv$
+\vspace{-1ex}
+\begin{list}{}{} \item
+\mbox{}\verb@@\\
+\mbox{}\verb@#include <RcppArmadillo.h>@\\
+\mbox{}\verb@using namespace Rcpp;@\\
+\mbox{}\verb@using namespace arma;@\\
+\mbox{}\verb@// [[Rcpp::depends(RcppArmadillo)]]@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@// Computes log(sum(exp(x))) with better precision@\\
+\mbox{}\verb@double logSumExp(arma::vec x){@\\
+\mbox{}\verb@  uword i = x.index_max();@\\
+\mbox{}\verb@  double m = x(i);@\\
+\mbox{}\verb@  x.shed_row(i);@\\
+\mbox{}\verb@  double lse = log1p(sum(exp(x-m))) + m;@\\
+\mbox{}\verb@  return lse;@\\
+\mbox{}\verb@}@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@// g function (logit transformation from appendix)@\\
+\mbox{}\verb@arma::vec g(arma::vec mu, double m, double M){@\\
+\mbox{}\verb@  arma::vec res = log(mu-m) - log(M-mu);@\\
+\mbox{}\verb@  return res;@\\
+\mbox{}\verb@}  @\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@@\\
+\mbox{}\verb@// [[Rcpp::export]]@\\
+\mbox{}\verb@List getThetaC(arma::vec spt, arma::vec f0, arma::vec mu,  @\\
+\mbox{}\verb@               arma::vec thetaStart, List thetaControl){@\\
+\mbox{}\verb@ // bool logit  = thetaControl["logit"];@\\
+\mbox{}\verb@  double eps = thetaControl["eps"];@\\
+\mbox{}\verb@  int maxiter = thetaControl["maxiter"];@\\
+\mbox{}\verb@  double maxhalf = thetaControl["maxhalf"];@\\
+\mbox{}\verb@  double maxtheta = thetaControl["maxtheta"];@\\
+\mbox{}\verb@ // bool logsumexp = thetaControl["logsumexp"];@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  int sptN = spt.size();@\\
+\mbox{}\verb@//  double m = min(spt);@\\
+\mbox{}\verb@//  double M = max(spt);@\\
+\mbox{}\verb@  int n = mu.size();@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@  //initialize values@\\
+\mbox{}\verb@  arma::vec theta = thetaStart;@\\
+\mbox{}\verb@  arma::vec thetaOld(n);@\\
+\mbox{}\verb@  arma::vec bPrimeErrOld(n);@\\
+\mbox{}\verb@  uvec conv(n, fill::zeros);@\\
+\mbox{}\verb@  uvec maxedOut(n, fill::zeros);@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  arma::rowvec oo(sptN, fill::ones);@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@  mat fUnstd = exp(spt * theta.t());@\\
+\mbox{}\verb@  fUnstd.each_col() %= f0;  // |spt| x n matrix of tilted f0 values@\\
+\mbox{}\verb@  rowvec b = oo * fUnstd;  //column sums;@\\
+\mbox{}\verb@  mat fTilt = fUnstd.each_row() / b;  // normalized@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@  colvec bPrime = fTilt.t() * spt;  // mean as a function of theta@\\
+\mbox{}\verb@  colvec bPrime2(n); // variance as a function of theta@\\
+\mbox{}\verb@  for (int j=0; j<n; j++){       //iterate over the columns of fTilt@\\
+\mbox{}\verb@    bPrime2(j) = 0;@\\
+\mbox{}\verb@    for (int i=0; i<sptN; i++){  //iterate over the rows of fTilt@\\
+\mbox{}\verb@      bPrime2(j) += pow(spt(i) - bPrime(j), 2.0) * fTilt(i,j);@\\
+\mbox{}\verb@    }@\\
+\mbox{}\verb@  }@\\
+\mbox{}\verb@  colvec bPrimeErr = bPrime - mu;  // used to assess convergence@\\
+\mbox{}\verb@    @\\
+\mbox{}\verb@  conv = (abs(bPrimeErr) < eps) || (theta==maxtheta && bPrimeErr<0) ||@\\
+\mbox{}\verb@      (theta==-maxtheta && bPrimeErr>0);@\\
+\mbox{}\verb@  uvec s = find(conv == 0);@\\
+\mbox{}\verb@  int iter = 0;@\\
+\mbox{}\verb@    @\\
+\mbox{}\verb@@\\
+\mbox{}\verb@ while(s.size() > 0 && iter < maxiter) {@\\
+\mbox{}\verb@    iter++;@\\
+\mbox{}\verb@    bPrimeErrOld(s) = bPrimeErr(s);  // used to assess convergence@\\
+\mbox{}\verb@    @\\
+\mbox{}\verb@// 1) Update theta@\\
+\mbox{}\verb@    thetaOld(s) = theta(s);@\\
+\mbox{}\verb@    colvec thetaS = theta(s) - bPrimeErr(s) / bPrime2(s);@\\
+\mbox{}\verb@    thetaS(find(thetaS > maxtheta)).fill(maxtheta);@\\
+\mbox{}\verb@    thetaS(find(thetaS < -maxtheta)).fill(-maxtheta);@\\
+\mbox{}\verb@    theta(s)= thetaS;@\\
+\mbox{}\verb@    @\\
+\mbox{}\verb@// 2) Update fTilt, bPrime, and bPrime2 and take half steps if bPrimeErr not improved@\\
+\mbox{}\verb@    uvec ss = s;@\\
+\mbox{}\verb@    int nhalf = 0;@\\
+\mbox{}\verb@    while(ss.size() > 0 && nhalf < maxhalf) {@\\
+\mbox{}\verb@// 2a) Update fTilt, bPrime, and bPrime2@\\
+\mbox{}\verb@      fUnstd.cols(ss) = exp(spt * theta(ss).t());@\\
+\mbox{}\verb@      fUnstd.each_col(ss) %= f0;  // |spt| x n matrix of tilted f0 values@\\
+\mbox{}\verb@      b = oo * fUnstd.cols(ss);  //column sums;@\\
+\mbox{}\verb@      mat tmp = fUnstd.cols(ss);@\\
+\mbox{}\verb@      fTilt.cols(ss) = tmp.each_row() / b;  // normalized@\\
+\mbox{}\verb@      @\\
+\mbox{}\verb@      bPrime(ss) = fTilt.cols(ss).t() * spt;  // mean as a function of theta@\\
+\mbox{}\verb@      for (uword j=0; j<ss.size(); j++){       //iterate over the columns of fTilt[,ss]@\\
+\mbox{}\verb@        bPrime2(ss(j)) = 0;@\\
+\mbox{}\verb@        for (int i=0; i<sptN; i++){  //iterate over the rows of fTilt[,ss]@\\
+\mbox{}\verb@          bPrime2(ss(j)) += pow(spt(i) - bPrime(ss(j)), 2.0) * fTilt(i,ss(j));@\\
+\mbox{}\verb@        }@\\
+\mbox{}\verb@      }@\\
+\mbox{}\verb@      bPrimeErr(ss) = bPrime(ss) - mu(ss); @\\
+\mbox{}\verb@      @\\
+\mbox{}\verb@// 2b) Take half steps if necessary@\\
+\mbox{}\verb@      ss = ss(find(abs(bPrimeErr(ss)) > abs(bPrimeErrOld(ss))));@\\
+\mbox{}\verb@      if (ss.size() > 0){@\\
+\mbox{}\verb@        nhalf++;@\\
+\mbox{}\verb@      } @\\
+\mbox{}\verb@      theta(ss) = (theta(ss) + thetaOld(ss)) / 2;@\\
+\mbox{}\verb@    }@\\
+\mbox{}\verb@// If maximum half steps are exceeded, set theta to previous value@\\
+\mbox{}\verb@    maxedOut(ss).fill(1);@\\
+\mbox{}\verb@    theta(ss) = thetaOld(ss);@\\
+\mbox{}\verb@    @\\
+\mbox{}\verb@// 3) Check convergence@\\
+\mbox{}\verb@    conv(s) = (abs(bPrimeErr(s)) < eps) ||  (theta(s)==maxtheta && bPrimeErr(s) < 0) ||@\\
+\mbox{}\verb@      (theta(s)==-maxtheta && bPrimeErr(s) > 0);@\\
+\mbox{}\verb@    s = s(find(conv(s) == 0 && maxedOut(s) == 0));@\\
+\mbox{}\verb@ }@\\
+\mbox{}\verb@      @\\
+\mbox{}\verb@  List res;@\\
+\mbox{}\verb@  res["theta"] = theta;@\\
+\mbox{}\verb@  res["fTilt"] = fTilt;@\\
+\mbox{}\verb@  res["bPrime"] = bPrime;@\\
+\mbox{}\verb@  res["bPrime2"] = bPrime2;@\\
+\mbox{}\verb@  res["conv"] = conv;@\\
+\mbox{}\verb@  res["iter"] = iter;@\\
+\mbox{}\verb@  return res;@\\
+\mbox{}\verb@}@\\
+\mbox{}\verb@@\\
+\mbox{}\verb@@{\NWsep}
+\end{list}
+\vspace{-1.5ex}
+\footnotesize
+\begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
+
+\item{}
+\end{list}
+\vspace{4ex}
+\end{flushleft}
+\begin{flushleft} \small\label{scrap5}\raggedright\small
+\NWtarget{nuweb?}{} \verb@"../R/wgldrm.R"@\nobreak\ {\footnotesize {?}}$\equiv$
 \vspace{-1ex}
 \begin{list}{}{} \item
 \mbox{}\verb@@\\
@@ -859,7 +905,7 @@ The code is based on the \texttt{gldrm} package, with minor changes to incorpora
 \vspace{-1.5ex}
 \footnotesize
 \begin{list}{}{\setlength{\itemsep}{-\parsep}\setlength{\itemindent}{-\leftmargin}}
-\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb4}{, 4}\NWlink{nuweb6}{, 6}\NWlink{nuweb10}{, 10}.
+\item \NWtxtFileDefBy\ \NWlink{nuweb1}{1}\NWlink{nuweb4}{, 4}\NWlink{nuweb6}{, 6}\NWlink{nuweb?}{, ?}.
 
 \item{}
 \end{list}
