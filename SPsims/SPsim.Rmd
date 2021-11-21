@@ -151,6 +151,9 @@ write.table(sim.all, file="SimData.txt", row.names=FALSE, quote=FALSE)
 if (.Platform$OS.type == "unix"){
   system("sas FitModels", wait=TRUE)
 }
+```
+
+```{r LoadResults}
 gee.res <- read.delim("GEEest.txt") %>%
   mutate(Coef = paste0(Parm, Level1)) %>%
   select(-Parm,-Level1) %>%
