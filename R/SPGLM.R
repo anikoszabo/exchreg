@@ -199,7 +199,7 @@ spglm <- function(formula, data, subset, weights, offset, link="logit", mu0=NULL
       
         data_object_mod <- list(model_matrix = mm, resp=Y, n=rowSums(Y), 
                                 weights = weights, offset = offset, maxN = N, 
-                                spt = spt)
+                                spt = spt, hyper_probs = hp)
         ll <- function(x){
           spglm_loglik(beta=x[1:p], f0 = exp(x[-(1:p)]), data_object=data_object_mod, link=link)
         }
@@ -419,7 +419,12 @@ spglm_probs <- function(beta, f0, data_object, link){
     th <- getTheta(spt=spt/N, f0=f0[spt+1], mu=mu, weights=data_object$weights, ySptIndex=rep(1, nobs),
                    thetaStart=NULL, thetaControl=theta.control())
                    
-    hp <- sapply(0:N, function(t)dhyper(x=data_object$resp[,1], m=data_object$n, n=N-data_object$n, k=t))  
+    if (is.null(data_object$hyper_probs)){                   
+      hp <- sapply(0:N, function(t)dhyper(x=data_object$resp[,1], m=data_object$n, 
+                   n=N-data_object$n, k=t))
+    } else {
+      hp <- data_object$hyper_probs
+    }
     
     # fill in 0's for values with no support
     fTilt <- matrix(0, ncol = nobs, nrow = N+1)
