@@ -21,8 +21,7 @@ use_data(boric_acid)
 ex <- as.package("../exchreg")
 nuweb(ex)
 
-#shell("cd c:/exchreg/nuweb/ && texify --pdf --quiet --run-viewer  SPregress.tex")
-shell("cd c:/exchreg/nuweb/ && texify --pdf --quiet  SPregress.tex")
+#shell("cd c:/exchreg/nuweb/ && texify --pdf --quiet --run-viewer  SPGLM.tex")
 shell("cd c:/exchreg/nuweb/ && texify --pdf --quiet SPGLM.tex")
 shell("cd c:/exchreg/nuweb/ && texify --pdf --quiet wgldrm.tex")
 
@@ -295,21 +294,7 @@ microbenchmark::microbenchmark(
   getThetaC(.spt, .f0, .mu, .thetaStart, exchreg:::theta.control()),
   getThetaR(.spt, .f0, .mu, .thetaStart, exchreg:::theta.control())
 )
-######### Testing SPreg
 
-
-a <- sprr(cbind(NResp, ClusterSize-NResp) ~ Trt, data=shelltox, weights=shelltox$Freq,
-                control=list(eps=0.001, maxit=1000), 
-          start = list(mu1=0.4))
-
-nd <- data.frame(Trt = unique(shelltox$Trt))
-nd$p <- predict(a, newdata=nd)
-nd
-
-a2 <- sprr(cbind(NResp, ClusterSize-NResp) ~ Trt + log(ClusterSize), 
-           data=shelltox, weights=shelltox$Freq,
-           control=list(eps=0.001,maxit=100),
-           start = list(beta=c(coef(a),0), q=a$q))
 
 
 ab <- sprr(cbind(NResp, ClusterSize-NResp) ~ Trt, data=shelltox, weights=shelltox$Freq,
