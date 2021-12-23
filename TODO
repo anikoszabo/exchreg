@@ -3,3 +3,4 @@
 * [DONE] spglm - return entire variance-covariance matrix, not just SE
 * add se.fit option to predict method
 * spglm - add option to not calculate SE
+* add input check for valid ClusterSize, etc

@@ -22,7 +22,7 @@ library(CorrBin) ## utilities for working with correlated binomial data
 library(VGAM) ## for beta-binomial regression
 library(geepack)  ## for GEE
 
-set.seed(20210814)
+set.seed(20211223)
 data(boric_acid)
 ```
 
@@ -138,7 +138,7 @@ Goal:
 
 ## Simulating data
 
-We will have one binary predictor $X_1 \sim Bern(0.5)$ with $beta_1=0.5$ and one continuous predictor $X_2 \sim N(0,1)$ with $\beta_2 = 1$. The cluster size distribution will be binomial.
+We will have one binary predictor $X_1 \sim Bern(0.5)$ with $\beta_1=0.5$ and one continuous predictor $X_2 \sim N(0,1)$ with $\beta_2 = 1$. The cluster size distribution will be binomial.
 
 ```{r SimOne}
 beta_correct <- c(0, 0.5, 1)
@@ -149,6 +149,7 @@ sim_covariates <- function(n, maxClusterSize = 10, aveClusterSize = 7, beta=beta
   mns <- 1/(1+exp(-lp))
   
   cs <- rbinom(n, size=maxClusterSize, prob=aveClusterSize/maxClusterSize)
+  cs <- pmax(1, cs) # don't want clusters of size 0
   
   data.frame(ClusterSize = cs, X1=x1, X2=x2, p_resp = mns)
 }
@@ -339,7 +340,12 @@ comb <- bind_rows(`Both correct` = sim1,
                   `BB correct`= sim2,
                   `SPGLM correct` = sim3, 
                   `Neither correct` = sim4,
-                  .id="Generator") 
+                  .id="Generator") %>%
+  mutate(Generator= factor(Generator, levels = c("Both correct",
+                                                 "BB correct",
+                                                 "SPGLM correct",
+                                                 "Neither correct")),
+         Model = factor(Model, levels = c("BB","SPGLM","GEE")))
 
 # get correct values of parameters 
 correct_beta <- tibble(Term = c("(Intercept)","X1","X2"),
@@ -349,7 +355,11 @@ correct_pdf <- bind_rows(`Both correct` = pdf1,
                          `SPGLM correct` = pdf3, 
                          `Neither correct` = pdf4,
                          .id="Generator") %>%
-  mutate(Term = as.character(NResp)) 
+  mutate(Term = as.character(NResp),
+         Generator= factor(Generator, levels = c("Both correct",
+                                                 "BB correct",
+                                                 "SPGLM correct",
+                                                 "Neither correct"))) 
 
 comb_beta <- left_join(comb %>% filter(Type == "Beta"), correct_beta, by="Term")
 
@@ -370,19 +380,29 @@ kable(scomb, digits=3)
 ```
 
 ```{r ComparePlot}
-ggplot(comb_beta, aes(x=Term, y=Est-Correct, colour=Model, shape=Model)) +
+cols <- RColorBrewer::brewer.pal(3, "Set2")
+names(cols) <- levels(comb$Model)
+ggplot(comb_beta, aes(x=Term, y=Est-Correct, fill=Model, outlier.fill=Model)) +
   facet_wrap(~Generator) +
   geom_hline(aes(yintercept=0)) +
-  stat_summary(fun.data =  mean_sdl, geom="pointrange", position=position_dodge(width=0.4)) 
+  geom_boxplot(position=position_dodge(width=0.4), width=0.3, 
+               outlier.size =1, outlier.alpha=0.5) +
+  scale_y_continuous("Bias = Estimate - correct value") +
+  scale_fill_manual(breaks=names(cols), values=cols)
 
 ```
 
 ```{r PDFplot}
-ggplot(comb_pdf, aes(x=NResp, y=Est, colour=Model)) +
+ggplot(comb_pdf, aes(x=NResp, y=Est, fill=Model, outlier.fill=Model)) +
   facet_wrap(~Generator) +
-  geom_line(aes(y=Correct), col="black") +
-  stat_summary(fun.data =  mean_sdl, geom="pointrange", position=position_dodge(width=0.1)) 
-  
+  geom_line(aes(y=Correct), colour="black", size=1) +
+  geom_boxplot(aes(group=interaction(Model, NResp)), 
+               position=position_dodge(width=0.6), width=0.5, 
+               outlier.size =1, outlier.alpha=0.5) +
+  scale_y_continuous("Probability") +
+  scale_x_continuous("# of responses", breaks = 0:cs_predict) +
+  scale_fill_manual(breaks=names(cols), values=cols)
+ 
 ```
 
 # Session information
