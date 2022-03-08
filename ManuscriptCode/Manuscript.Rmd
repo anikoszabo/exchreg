@@ -207,6 +207,10 @@ run_analysis <- function(dat, cs_predict=5){
   #Beta-binomial
   res_bb <- vgam(cbind(NResp, ClusterSize - NResp) ~  X1 + X2, weights = Freq,
                  data=dat, family =  betabinomial(lmu="logitlink"))
+  #Binomial
+  res_bin <- glm(cbind(NResp, ClusterSize - NResp) ~  X1 + X2, weights = Freq,
+                 data=dat, family =  binomial)
+  
   #SPGLM
   op <- options(warn=-1)
   res_spglm <- spglm(cbind(NResp, ClusterSize - NResp) ~ X1 + X2, data=dat,
@@ -224,6 +228,15 @@ run_analysis <- function(dat, cs_predict=5){
            Prob = dbetabinom(NResp, size=cs_predict, prob=mns_rho[1,"mu"], rho=mns_rho[1,"rho"])) %>%
   mutate(Model="BB")
 
+   # binomial
+  mns <- predict(res_bin, type="response", newdata=newd) 
+
+  fit_bin <- newd %>% 
+    crossing(NResp=0:cs_predict) %>%
+    mutate(ClusterSize = cs_predict,
+           Prob = dbinom(NResp, size=cs_predict, prob=mns)) %>%
+  mutate(Model="Bin")
+
 
   fit_spglm <- newd %>% 
     crossing(NResp=0:cs_predict) %>%
@@ -240,12 +253,15 @@ run_analysis <- function(dat, cs_predict=5){
     BB = tibble(Term = nms,
                 Est = coef(res_bb)[-2],      # second value is logit(rho)   
                 SE=sqrt(diag(vcov(res_bb)))[-2]),
+    Bin = tibble(Term = nms,
+                 Est = coef(res_bin),
+                 SE = sqrt(diag(vcov(res_bin)))),
     SPGLM = tibble(Term = nms,
                    Est = coef(res_spglm), 
                    SE= sqrt(diag(vcov(res_spglm)))),
     .id = "Model")
   
-  fit <- bind_rows(fit_bb, fit_spglm) %>%
+  fit <- bind_rows(fit_bb, fit_bin, fit_spglm) %>%
     mutate(Type = "PDF")
   
   out <- res %>%
