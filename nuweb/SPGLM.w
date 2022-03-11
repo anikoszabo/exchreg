@@ -592,15 +592,19 @@ We will use numeric derivation to obtain the hessian of the observed data likeli
   }
 
   hess <- numDeriv::hessian(func=ll,  x=c(betas, log(referencef0)))
-  hess_idx <- c(1:p, p+spt+1) # betas and f0 elements with non-zero real support
+  
+  # determine non-degenerate support
+  hess_spt <- which(referencef0 > sqrt(.Machine$double.eps))
+  
+  hess_idx <- c(1:p, p+hess_spt) # betas and f0 elements with non-zero real support
   
   # revert to unlogged f0
-  grad <- c(rep(1, p), 1/referencef0[spt+1])
+  grad <- c(rep(1, p), 1/referencef0[hess_spt])
   hess1 <- diag(grad) %*% hess[hess_idx, hess_idx] %*% diag(grad)
   
   # create bordered hessian
-  border1 <- c(rep(0, p), rep(1, length(spt)))  # gradient of sum-to-one constraint
-  border2 <- c(rep(0, p), spt)          # gradient of fixed-mean constraint
+  border1 <- c(rep(0, p), rep(1, length(hess_spt)))  # gradient of sum-to-one constraint
+  border2 <- c(rep(0, p), hess_spt-1)          # gradient of fixed-mean constraint
   bhess <- rbind(cbind(hess1, border1, border2), c(border1,0,0), c(border2,0,0))
   
   # calculate variance-covariance matrix
@@ -609,7 +613,7 @@ We will use numeric derivation to obtain the hessian of the observed data likeli
   if (!is.null(bvc)){
     # remove border and set to 0 for zero-support values
     vc <- matrix(0, nrow=p+N+1, ncol=p+N+1)
-    vc[hess_idx, hess_idx] <- bvc[1:(p+length(spt)), 1:(p+length(spt))]     
+    vc[hess_idx, hess_idx] <- bvc[1:(p+length(hess_spt)), 1:(p+length(hess_spt))]     
   } else {
     vc <- matrix(NA, nrow=p+N+1, ncol=p+N+1)
   }

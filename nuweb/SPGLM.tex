@@ -764,15 +764,19 @@ We will use numeric derivation to obtain the hessian of the observed data likeli
 \mbox{}\verb@  }@\\
 \mbox{}\verb@@\\
 \mbox{}\verb@  hess <- numDeriv::hessian(func=ll,  x=c(betas, log(referencef0)))@\\
-\mbox{}\verb@  hess_idx <- c(1:p, p+spt+1) # betas and f0 elements with non-zero real support@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  # determine non-degenerate support@\\
+\mbox{}\verb@  hess_spt <- which(referencef0 > sqrt(.Machine$double.eps))@\\
+\mbox{}\verb@  @\\
+\mbox{}\verb@  hess_idx <- c(1:p, p+hess_spt) # betas and f0 elements with non-zero real support@\\
 \mbox{}\verb@  @\\
 \mbox{}\verb@  # revert to unlogged f0@\\
-\mbox{}\verb@  grad <- c(rep(1, p), 1/referencef0[spt+1])@\\
+\mbox{}\verb@  grad <- c(rep(1, p), 1/referencef0[hess_spt])@\\
 \mbox{}\verb@  hess1 <- diag(grad) %*% hess[hess_idx, hess_idx] %*% diag(grad)@\\
 \mbox{}\verb@  @\\
 \mbox{}\verb@  # create bordered hessian@\\
-\mbox{}\verb@  border1 <- c(rep(0, p), rep(1, length(spt)))  # gradient of sum-to-one constraint@\\
-\mbox{}\verb@  border2 <- c(rep(0, p), spt)          # gradient of fixed-mean constraint@\\
+\mbox{}\verb@  border1 <- c(rep(0, p), rep(1, length(hess_spt)))  # gradient of sum-to-one constraint@\\
+\mbox{}\verb@  border2 <- c(rep(0, p), hess_spt-1)          # gradient of fixed-mean constraint@\\
 \mbox{}\verb@  bhess <- rbind(cbind(hess1, border1, border2), c(border1,0,0), c(border2,0,0))@\\
 \mbox{}\verb@  @\\
 \mbox{}\verb@  # calculate variance-covariance matrix@\\
@@ -781,7 +785,7 @@ We will use numeric derivation to obtain the hessian of the observed data likeli
 \mbox{}\verb@  if (!is.null(bvc)){@\\
 \mbox{}\verb@    # remove border and set to 0 for zero-support values@\\
 \mbox{}\verb@    vc <- matrix(0, nrow=p+N+1, ncol=p+N+1)@\\
-\mbox{}\verb@    vc[hess_idx, hess_idx] <- bvc[1:(p+length(spt)), 1:(p+length(spt))]     @\\
+\mbox{}\verb@    vc[hess_idx, hess_idx] <- bvc[1:(p+length(hess_spt)), 1:(p+length(hess_spt))]     @\\
 \mbox{}\verb@  } else {@\\
 \mbox{}\verb@    vc <- matrix(NA, nrow=p+N+1, ncol=p+N+1)@\\
 \mbox{}\verb@  }@\\
