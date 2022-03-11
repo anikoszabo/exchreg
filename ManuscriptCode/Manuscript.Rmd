@@ -128,8 +128,8 @@ Goal:
 
  * simulate data with four settings:
  
-  1. Both the beta-binomial and semi-parameteric model are correct - a binomial backbone, which belongs to the exponential family
-  2. Only the beta-binomial model is correct - generated from a beta-binomial distribution
+  1. Both the parametric (binomial) and semi-parameteric model are correct - a binomial backbone, which belongs to the exponential family
+  2. Only the parametric (beta-binomial) model is correct - generated from a beta-binomial distribution
   3. Only the semi-parametric model is correct - generated from the spglm, with a q-power backbone
   4. Neither model is correct - generated from a q-power distribution
  * fit the data using our semi-parametric regression model, beta-binomial regression (potentially misspecified distribution), and GEE (marginal only)
@@ -199,17 +199,21 @@ rqpower <- function(n, size, prob, rho){
 ## Analyzing a simulated dataset
 
 ```{r AnalyzeOne}
-run_analysis <- function(dat, cs_predict=5){
+run_analysis <- function(dat, cs_predict=5, Binom = FALSE){
   #GEE
   dat_long <- unwrap(dat)
   res_gee <- geeglm(Resp ~ X1 + X2, data=dat_long, id = ID, family=binomial,
                  corstr = "exch")
-  #Beta-binomial
-  res_bb <- vgam(cbind(NResp, ClusterSize - NResp) ~  X1 + X2, weights = Freq,
+  
+  if (Binom){
+    #Binomial
+    res_bin <- glm(cbind(NResp, ClusterSize - NResp) ~  X1 + X2, weights = Freq,
+                  data=dat, family =  binomial)
+  } else {
+    #Beta-binomial
+    res_bb <- vgam(cbind(NResp, ClusterSize - NResp) ~  X1 + X2, weights = Freq,
                  data=dat, family =  betabinomial(lmu="logitlink"))
-  #Binomial
-  res_bin <- glm(cbind(NResp, ClusterSize - NResp) ~  X1 + X2, weights = Freq,
-                 data=dat, family =  binomial)
+  }
   
   #SPGLM
   op <- options(warn=-1)
@@ -219,23 +223,37 @@ run_analysis <- function(dat, cs_predict=5){
   
   # predict PDF at cluster-size cs_predict & all covariates = 0
   newd <- data.frame(X1 = 0, X2 = 0)
-  # beta-binomial
-  mns_rho <- predictvglm(res_bb, type="link", newdata=newd, untransform=TRUE) 
+  nms <- names(coef(res_spglm))
 
-  fit_bb <- newd %>% 
-    crossing(NResp=0:cs_predict) %>%
-    mutate(ClusterSize = cs_predict,
-           Prob = dbetabinom(NResp, size=cs_predict, prob=mns_rho[1,"mu"], rho=mns_rho[1,"rho"])) %>%
-  mutate(Model="BB")
+  if (Binom){   
+    # binomial
+    mns <- predict(res_bin, type="response", newdata=newd) 
 
-   # binomial
-  mns <- predict(res_bin, type="response", newdata=newd) 
+   fit_binbb <- newd %>% 
+      crossing(NResp=0:cs_predict) %>%
+      mutate(ClusterSize = cs_predict,
+            Prob = dbinom(NResp, size=cs_predict, prob=mns)) %>%
+    mutate(Model="Binom/BB")
+   
+   ests_binbb <- tibble(Term = nms,
+                 Est = coef(res_bin),
+                 SE = sqrt(diag(vcov(res_bin))))
+  } else {
+    # beta-binomial
+    mns_rho <- predictvglm(res_bb, type="link", newdata=newd, untransform=TRUE) 
 
-  fit_bin <- newd %>% 
-    crossing(NResp=0:cs_predict) %>%
-    mutate(ClusterSize = cs_predict,
-           Prob = dbinom(NResp, size=cs_predict, prob=mns)) %>%
-  mutate(Model="Bin")
+    fit_binbb <- newd %>% 
+      crossing(NResp=0:cs_predict) %>%
+      mutate(ClusterSize = cs_predict,
+            Prob = dbetabinom(NResp, size=cs_predict, prob=mns_rho[1,"mu"],
+                              rho=mns_rho[1,"rho"])) %>%
+    mutate(Model="Binom/BB")
+    
+    ests_binbb <- tibble(Term = nms,
+                Est = coef(res_bb)[-2],      # second value is logit(rho)   
+                SE=sqrt(diag(vcov(res_bb)))[-2])
+  }
+
 
 
   fit_spglm <- newd %>% 
@@ -245,23 +263,17 @@ run_analysis <- function(dat, cs_predict=5){
                           newn=ClusterSize, newevents = NResp),
            Model = "SPGLM")
   
-  nms <- names(coef(res_spglm))
   res <- bind_rows(
     GEE = tibble(Term = nms, 
                  Est=coef(res_gee), 
                  SE = sqrt(diag(vcov(res_gee)))),
-    BB = tibble(Term = nms,
-                Est = coef(res_bb)[-2],      # second value is logit(rho)   
-                SE=sqrt(diag(vcov(res_bb)))[-2]),
-    Bin = tibble(Term = nms,
-                 Est = coef(res_bin),
-                 SE = sqrt(diag(vcov(res_bin)))),
+    `Binom/BB` = ests_binbb,
     SPGLM = tibble(Term = nms,
                    Est = coef(res_spglm), 
                    SE= sqrt(diag(vcov(res_spglm)))),
     .id = "Model")
   
-  fit <- bind_rows(fit_bb, fit_bin, fit_spglm) %>%
+  fit <- bind_rows(fit_binbb, fit_spglm) %>%
     mutate(Type = "PDF")
   
   out <- res %>%
@@ -281,7 +293,7 @@ run_analysis <- function(dat, cs_predict=5){
 
 
 ```{r ActualSim1, warning=FALSE}
-R <- 100
+R <- 500
 cs_predict <- 5
 p_predict <- 1/(1+exp(-c(beta_correct %*% c(0,0,0))))
 
@@ -290,7 +302,7 @@ sim1 <-
   replicate(R,
             {simd <- sim_covariates(100) %>% 
                 add_response_param(rfun=function(n, cs, p)rbinom(n, size=cs, prob=p));
-             run_analysis(simd, cs_predict = cs_predict)}, 
+             run_analysis(simd, cs_predict = cs_predict, Binom = TRUE)}, 
             simplify = FALSE)  %>%
    bind_rows(.id="ID")
 
@@ -353,27 +365,27 @@ pdf4 <- tibble(NResp = 0:cs_predict) %>%
 
 ```{r Compare}
 comb <- bind_rows(`Both correct` = sim1, 
-                  `BB correct`= sim2,
+                  `Parametric correct`= sim2,
                   `SPGLM correct` = sim3, 
                   `Neither correct` = sim4,
                   .id="Generator") %>%
   mutate(Generator= factor(Generator, levels = c("Both correct",
-                                                 "BB correct",
+                                                 "Parametric correct",
                                                  "SPGLM correct",
                                                  "Neither correct")),
-         Model = factor(Model, levels = c("BB","SPGLM","GEE")))
+         Model = factor(Model, levels = c("Binom/BB","SPGLM","GEE")))
 
 # get correct values of parameters 
 correct_beta <- tibble(Term = c("(Intercept)","X1","X2"),
                   Correct = beta_correct)
 correct_pdf <- bind_rows(`Both correct` = pdf1, 
-                         `BB correct`= pdf2,
+                         `Parametric correct`= pdf2,
                          `SPGLM correct` = pdf3, 
                          `Neither correct` = pdf4,
                          .id="Generator") %>%
   mutate(Term = as.character(NResp),
          Generator= factor(Generator, levels = c("Both correct",
-                                                 "BB correct",
+                                                 "Parametric correct",
                                                  "SPGLM correct",
                                                  "Neither correct"))) 
 
@@ -389,7 +401,8 @@ scomb <- comb_beta %>%
             mc.se = sd(Est, na.rm=TRUE),
             se = mean(SE, na.rm=TRUE),
             .groups="drop_last") %>%
-  mutate(rel.eff = mc.se / mc.se[Model=="GEE"]) %>%
+  mutate(rel.eff = mc.se / mc.se[Model=="GEE"],
+         se.rel.bias = mc.se/se) %>%
   ungroup() %>%
   arrange(Generator, Model, Term)
 kable(scomb, digits=3)
@@ -416,6 +429,17 @@ ggplot(comb_pdf, aes(x=NResp, y=Est, fill=Model, outlier.fill=Model)) +
                position=position_dodge(width=0.6), width=0.5, 
                outlier.size =1, outlier.alpha=0.5) +
   scale_y_continuous("Probability") +
+  scale_x_continuous("# of responses", breaks = 0:cs_predict) +
+  scale_fill_manual(breaks=names(cols), values=cols)
+ 
+ggplot(comb_pdf, aes(x=NResp, y=Est-Correct, fill=Model, outlier.fill=Model)) +
+  facet_wrap(~Generator) +
+  geom_hline(yintercept = 0, colour="black", size=1) +
+  stat_summary(aes(color=Model), fun=mean, geom="line") +
+  geom_boxplot(aes(group=interaction(Model, NResp)), 
+               position=position_dodge(width=0.6), width=0.5, 
+               outlier.size =1, outlier.alpha=0.5) +
+  scale_y_continuous("Bias of probability") +
   scale_x_continuous("# of responses", breaks = 0:cs_predict) +
   scale_fill_manual(breaks=names(cols), values=cols)
  
