@@ -58,7 +58,7 @@ We can fit a semi-parametric GLM with a logit-link
 
 ``` r
 mod1 <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, data=boric_acid, weights=Freq)
-mod1
+mod1 
 #> 
 #> A semi-parametric generalized linear regression model fit
 #> 
@@ -68,20 +68,20 @@ mod1
 #> 
 #> Coefficients:
 #>             Estimate Std. Error z value Pr(>|z|)    
-#> (Intercept)  -2.3880     0.2788  -8.565  < 2e-16 ***
-#> Trt0.1        0.5273     0.3569   1.478 0.139531    
-#> Trt0.2       -0.2133     0.4205  -0.507 0.611944    
-#> Trt0.4        1.4202     0.3938   3.606 0.000311 ***
+#> (Intercept)  -2.3953     0.2765  -8.662  < 2e-16 ***
+#> Trt0.1        0.5333     0.3550   1.502 0.133053    
+#> Trt0.2       -0.2074     0.4199  -0.494 0.621306    
+#> Trt0.4        1.4268     0.3924   3.636 0.000277 ***
 #> ---
 #> Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 #> 
 #>  Baseline probabilities (q0):
 #>         0          1          2          3          4          5          6  
-#> 1.749e-01  3.139e-01  3.898e-02  2.242e-01  1.762e-01  7.468e-07  6.031e-02  
+#> 1.743e-01  3.092e-01  5.386e-02  2.106e-01  1.761e-01  8.214e-03  5.624e-02  
 #>         7          8          9         10         11         12         13  
-#> 4.625e-07  3.076e-07  2.482e-07  2.476e-07  1.017e-02  1.329e-07  9.319e-08  
+#> 2.184e-06  4.194e-08  2.996e-08  2.259e-05  1.013e-02  5.963e-08  5.148e-09  
 #>        14         15         16  
-#> 6.041e-08  5.108e-08  1.342e-03  
+#> 2.708e-11  3.285e-10  1.335e-03  
 #> 
 #>  Log-likelihood:  -130
 ```

@@ -47,7 +47,7 @@ We can fit a semi-parametric GLM with a logit-link
 
 ```{r SPGLMexample}
 mod1 <- spglm(cbind(NResp, ClusterSize - NResp) ~ Trt, data=boric_acid, weights=Freq)
-mod1
+mod1 
 ```
 
 The prediction method can be used to obtain the predicted probabilities for any given outcome. For example, we estimate the probability of having 0 - 5 affected fetuses in a litter of size 5 at dose level 0.4:

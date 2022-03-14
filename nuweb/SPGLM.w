@@ -542,10 +542,11 @@ We start the regression coefficients are set to 0, so $q^{(0)}_N$ would be the o
 
 @D Set starting values @{
   betas <- NULL
-  pooled <- CorrBin::CBData(data.frame(Trt = "All", NResp = Y[,1], ClusterSize = rowSums(Y), Freq=ceiling(weights)), 
-                    trt="Trt", clustersize="ClusterSize", nresp="NResp", freq="Freq")
-  est <- CorrBin::mc.est(pooled)
-  referencef0 <- est$Prob[est$ClusterSize == N]
+  #pooled <- CorrBin::CBData(data.frame(Trt = "All", NResp = Y[,1], ClusterSize = rowSums(Y), Freq=ceiling(weights)), 
+  #                  trt="Trt", clustersize="ClusterSize", nresp="NResp", freq="Freq")
+  #est <- CorrBin::mc.est(pooled)
+  #referencef0 <- est$Prob[est$ClusterSize == N]
+  referencef0 <- rep(1/(N+1), N+1)
   
   
 @}
