@@ -3,6 +3,8 @@ title: Code to reproduce results in _Semi-parametric generalized linear model fo
   binomial data with varying cluster sizes_
 author: "Aniko Szabo"
 output:
+  pdf_document: 
+    keep_tex: true
   html_document:
     df_print: paged
 ---
@@ -109,11 +111,15 @@ fit_nonpar <- mc.est(boric_acid) %>%
 ```{r PredictPlot}
 fits <- bind_rows(fit_bb, fit_spglm, fit_nonpar)
 
-ggplot(fits, aes(x=NResp, y=Prob, colour=Model)) +
+linecols <- colorspace::darken(RColorBrewer::brewer.pal(3, "Set3"), 0.2)
+names(linecols) <- unique(fits$Model)
+
+ggplot(fits, aes(x=NResp, y=Prob, colour=Model, shape=Model, linetype=Model)) +
   facet_wrap(~Trt) +
   geom_point() +
   geom_line() +
   scale_x_continuous("# of affected animals", breaks=seq(0,10,by=2)) +
+  scale_colour_manual(values=linecols) +
   ylab("Probability") +
   theme_bw()
 
@@ -140,8 +146,15 @@ Goal:
 
 We will have one binary predictor $X_1 \sim Bern(0.5)$ with $\beta_1=0.5$ and one continuous predictor $X_2 \sim N(0,1)$ with $\beta_2 = 1$. The cluster size distribution will be binomial.
 
-```{r SimOne}
+
+```{r SimParams}
+R <- 500
 beta_correct <- c(0, 0.5, 1)
+cs_predict <- 5
+p_predict <- 1/(1+exp(-c(beta_correct %*% c(0,0,0))))
+```
+
+```{r SimOne}
 sim_covariates <- function(n, maxClusterSize = 10, aveClusterSize = 7, beta=beta_correct){
   x1 <- rbinom(n, size=1, prob=0.5)
   x2 <- rnorm(n)
@@ -293,10 +306,7 @@ run_analysis <- function(dat, cs_predict=5, Binom = FALSE){
 
 
 ```{r ActualSim1, warning=FALSE}
-R <- 500
-cs_predict <- 5
-p_predict <- 1/(1+exp(-c(beta_correct %*% c(0,0,0))))
-
+set.seed(20211223)
 # Scenario 1: binomial PDF
 sim1 <- 
   replicate(R,
@@ -310,7 +320,10 @@ pdf1 <- tibble(NResp = 0:cs_predict) %>%
   mutate(Correct = dbinom(NResp, size=cs_predict, prob=p_predict))
 ```
 
+
+
 ```{r ActualSim2, warning=FALSE}
+set.seed(20211223)
 # Scenario 2: beta-binomial PDF
 sim2 <- 
   replicate(R,
@@ -325,6 +338,7 @@ pdf2 <- tibble(NResp = 0:cs_predict) %>%
 ```
 
 ```{r ActualSim3, warning=FALSE}
+set.seed(20211223)
 # Scenario 3: SPGLM with q-power backbone
 sim3 <- 
   replicate(R,
@@ -343,7 +357,9 @@ pdf3 <- ran.spglm(n=rep(cs_predict, 1e6), means = rep(p_predict, 1e6),
 
 ```
 
+
 ```{r ActualSim4, warning=FALSE}
+set.seed(20211223)
 # Scenario 4: q-power 
 sim4 <- 
   replicate(R,
@@ -389,7 +405,13 @@ correct_pdf <- bind_rows(`Both correct` = pdf1,
                                                  "SPGLM correct",
                                                  "Neither correct"))) 
 
-comb_beta <- left_join(comb %>% filter(Type == "Beta"), correct_beta, by="Term")
+comb_beta <- left_join(comb %>% filter(Type == "Beta"), correct_beta, by="Term") %>%
+  mutate(Coefficient = recode(Term, "(Intercept)" = "beta[0]", 
+                              "X1"="beta[1]", 
+                              X2="beta[2]"),
+         Term = recode(Term,  "(Intercept)" = "$\\beta_0$", 
+                       "X1"="$\\beta_1$", 
+                       X2="$\\beta_2$"))
 
 comb_pdf <- left_join(comb %>% filter(Type=="PDF"), 
                       correct_pdf, by=c("Term","Generator")) 
@@ -401,23 +423,25 @@ scomb <- comb_beta %>%
             mc.se = sd(Est, na.rm=TRUE),
             se = mean(SE, na.rm=TRUE),
             .groups="drop_last") %>%
-  mutate(rel.eff = mc.se / mc.se[Model=="GEE"],
-         se.rel.bias = mc.se/se) %>%
+  mutate(rel.eff = mc.se / mc.se[Model=="GEE"]) %>%
   ungroup() %>%
   arrange(Generator, Model, Term)
 kable(scomb, digits=3)
 ```
 
 ```{r ComparePlot}
-cols <- RColorBrewer::brewer.pal(3, "Set2")
+cols <- RColorBrewer::brewer.pal(3, "Set3")
 names(cols) <- levels(comb$Model)
-ggplot(comb_beta, aes(x=Term, y=Est-Correct, fill=Model, outlier.fill=Model)) +
+ggplot(comb_beta, aes(x=Coefficient, y=Est-Correct, fill=Model, outlier.fill=Model)) +
   facet_wrap(~Generator) +
   geom_hline(aes(yintercept=0)) +
-  geom_boxplot(position=position_dodge(width=0.4), width=0.3, 
+  geom_boxplot(position=position_dodge(width=0.8), width=0.7, 
                outlier.size =1, outlier.alpha=0.5) +
-  scale_y_continuous("Bias = Estimate - correct value") +
-  scale_fill_manual(breaks=names(cols), values=cols)
+  scale_x_discrete(labels = scales::label_parse()) +
+  scale_y_continuous("Bias of parameter estimate") +
+  scale_fill_manual(breaks=names(cols), values=cols) +
+  theme(legend.position = "top")
+ 
 
 ```
 
@@ -430,18 +454,20 @@ ggplot(comb_pdf, aes(x=NResp, y=Est, fill=Model, outlier.fill=Model)) +
                outlier.size =1, outlier.alpha=0.5) +
   scale_y_continuous("Probability") +
   scale_x_continuous("# of responses", breaks = 0:cs_predict) +
-  scale_fill_manual(breaks=names(cols), values=cols)
+  scale_fill_manual(breaks=names(cols), values=cols)  +
+  theme(legend.position = "top")
  
 ggplot(comb_pdf, aes(x=NResp, y=Est-Correct, fill=Model, outlier.fill=Model)) +
   facet_wrap(~Generator) +
-  geom_hline(yintercept = 0, colour="black", size=1) +
-  stat_summary(aes(color=Model), fun=mean, geom="line") +
+  geom_hline(yintercept = 0, colour="black") +
+ # stat_summary(aes(color=Model), fun=mean, geom="line") +
   geom_boxplot(aes(group=interaction(Model, NResp)), 
-               position=position_dodge(width=0.6), width=0.5, 
+               position=position_dodge(width=0.8), width=0.7, 
                outlier.size =1, outlier.alpha=0.5) +
-  scale_y_continuous("Bias of probability") +
+  scale_y_continuous("Bias of event probability estimate") +
   scale_x_continuous("# of responses", breaks = 0:cs_predict) +
-  scale_fill_manual(breaks=names(cols), values=cols)
+  scale_fill_manual(breaks=names(cols), values=cols) +
+  theme(legend.position = "top")
  
 ```
 
