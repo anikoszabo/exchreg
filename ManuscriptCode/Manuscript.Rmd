@@ -123,6 +123,10 @@ ggplot(fits, aes(x=NResp, y=Prob, colour=Model, shape=Model, linetype=Model)) +
   ylab("Probability") +
   theme_bw()
 
+# save data
+write.csv(fits %>% select(Model, Trt, ClusterSize, NResp, Prob),
+          file="PredictPlot.csv")
+
 ```
 
 
@@ -423,9 +427,9 @@ scomb <- comb_beta %>%
             mc.se = sd(Est, na.rm=TRUE),
             se = mean(SE, na.rm=TRUE),
             .groups="drop_last") %>%
-  mutate(rel.eff = mc.se / mc.se[Model=="GEE"]) %>%
+  mutate(rel.eff = mc.se^2 / mc.se[Model=="GEE"]^2) %>%
   ungroup() %>%
-  arrange(Generator, Model, Term)
+  arrange(Generator, Term, Model)
 kable(scomb, digits=3)
 ```
 
@@ -442,7 +446,9 @@ ggplot(comb_beta, aes(x=Coefficient, y=Est-Correct, fill=Model, outlier.fill=Mod
   scale_fill_manual(breaks=names(cols), values=cols) +
   theme(legend.position = "top")
  
-
+# save data
+write.csv(comb_beta %>% select(Generator, ID, Model, Coefficient, Est, SE, Correct),
+          file="ComparePlot.csv")
 ```
 
 ```{r PDFplot}
@@ -469,6 +475,9 @@ ggplot(comb_pdf, aes(x=NResp, y=Est-Correct, fill=Model, outlier.fill=Model)) +
   scale_fill_manual(breaks=names(cols), values=cols) +
   theme(legend.position = "top")
  
+# save data
+write.csv(comb_pdf %>% select(Generator, ID, Model, NResp, Est, Correct),
+          file="PDFPlot.csv")
 ```
 
 # Session information
